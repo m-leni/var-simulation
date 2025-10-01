@@ -1,0 +1,355 @@
+"""
+This module provides functions for calculating various financial metrics,
+including weighted moving averages and Value at Risk (VaR).
+"""
+import numpy as np
+import pandas as pd
+from typing import Union, Optional, Dict, List
+from scipy import stats
+
+def weighted_moving_average(
+    data: Union[pd.Series, np.ndarray, list],
+    window: int,
+    weights: Optional[Union[pd.Series, np.ndarray, list]] = None
+) -> pd.Series:
+    """
+    Calculate the weighted moving average of a time series.
+    
+    Args:
+        data (Union[pd.Series, np.ndarray, list]): Input time series data
+        window (int): The size of the moving window in days
+        weights (Optional[Union[pd.Series, np.ndarray, list]]): Custom weights for the window.
+            If None, uses linear weights with more weight on recent data.
+            Must be the same length as the window if provided.
+    
+    Returns:
+        pd.Series: Weighted moving average values
+        
+    Raises:
+        ValueError: If window size is invalid or weights don't match window size
+    """
+    if window < 1:
+        raise ValueError("Window size must be at least 1")
+        
+    # Convert input to pandas Series if it isn't already
+    if not isinstance(data, pd.Series):
+        data = pd.Series(data)
+    
+    # If no weights provided, create linear weights (more weight on recent data)
+    if weights is None:
+        weights = np.linspace(1, window, window)
+        weights = weights / weights.sum()  # Normalize weights to sum to 1
+    else:
+        weights = np.array(weights)
+        if len(weights) != window:
+            raise ValueError(f"Length of weights ({len(weights)}) must match window size ({window})")
+        weights = weights / weights.sum()  # Normalize weights to sum to 1
+    
+    # Calculate WMA using convolution
+    wma = data.rolling(window=window).apply(
+        lambda x: np.sum(weights * x[-window:])
+        if len(x) >= window else np.nan
+    )
+    
+    return wma
+
+def exponential_weighted_moving_average(
+    data: Union[pd.Series, np.ndarray, list],
+    window: int,
+    alpha: Optional[float] = None
+) -> pd.Series:
+    """
+    Calculate the exponentially weighted moving average (EWMA) of a time series.
+    
+    Args:
+        data (Union[pd.Series, np.ndarray, list]): Input time series data
+        window (int): The size of the moving window in days
+        alpha (Optional[float]): Smoothing factor between 0 and 1.
+            If None, will be calculated as 2/(window + 1)
+            Higher alpha means more weight on recent data.
+    
+    Returns:
+        pd.Series: Exponentially weighted moving average values
+        
+    Raises:
+        ValueError: If window size is invalid or alpha is not between 0 and 1
+    """
+    if window < 1:
+        raise ValueError("Window size must be at least 1")
+        
+    # Convert input to pandas Series if it isn't already
+    if not isinstance(data, pd.Series):
+        data = pd.Series(data)
+    
+    # Calculate alpha if not provided
+    if alpha is None:
+        alpha = 2 / (window + 1)
+    elif not 0 < alpha <= 1:
+        raise ValueError("Alpha must be between 0 and 1")
+    
+    # Calculate EWMA
+    ewma = data.ewm(
+        span=window,
+        alpha=alpha,
+        adjust=False  # Don't adjust weights to account for missing data
+    ).mean()
+    
+    return ewma
+
+def calculate_returns(
+    prices: Union[pd.Series, np.ndarray, list]) -> np.ndarray:
+    """Calculate log returns from a series of prices."""
+    prices = np.array(prices)
+    return np.log(prices[1:] / prices[:-1])
+
+def calculate_portfolio_returns(
+    stock_prices: Dict[str, np.ndarray],
+    weights: np.ndarray
+) -> np.ndarray:
+    """
+    Calculate portfolio returns from individual stock prices and weights.
+    
+    Args:
+        stock_prices (Dict[str, np.ndarray]): Dictionary mapping ticker symbols to price arrays
+        weights (np.ndarray): Array of portfolio weights corresponding to the stocks
+        
+    Returns:
+        np.ndarray: Array of portfolio returns
+    """
+    if len(stock_prices) != len(weights):
+        raise ValueError("Number of stocks must match number of weights")
+    
+    # Calculate returns for each stock
+    stock_returns = {
+        ticker: calculate_returns(prices)
+        for ticker, prices in stock_prices.items()
+    }
+    
+    # Create a returns matrix
+    returns_matrix = np.column_stack([
+        returns for returns in stock_returns.values()
+    ])
+    
+    # Calculate portfolio returns
+    portfolio_returns = np.dot(returns_matrix, weights)
+    
+    return portfolio_returns
+
+def portfolio_var(
+    returns: np.ndarray,
+    weights: np.ndarray,
+    confidence_level: float = 0.95,
+    investment_value: float = 100000.0,
+    method: str = "historical"
+) -> Dict[str, float]:
+    """
+    Calculate portfolio Value at Risk (VaR) using either historical or parametric method.
+    
+    Args:
+        returns (np.ndarray): Matrix of asset returns (each column is an asset)
+        weights (np.ndarray): Array of portfolio weights
+        confidence_level (float): Confidence level for VaR calculation
+        investment_value (float): Total portfolio value
+        method (str): VaR calculation method ('historical' or 'parametric')
+    
+    Returns:
+        Dict[str, float]: Dictionary containing VaR and other risk metrics
+    """
+    # Calculate portfolio returns
+    portfolio_returns = np.dot(returns, weights)
+    
+    # Calculate VaR based on method
+    if method == "historical":
+        var = historical_var(portfolio_returns, confidence_level, investment_value)
+    else:  # parametric
+        var = parametric_var(portfolio_returns, confidence_level, investment_value)
+    
+    # Calculate additional risk metrics
+    portfolio_std = np.std(portfolio_returns, ddof=1)
+    portfolio_mean = np.mean(portfolio_returns)
+    sharpe_ratio = (portfolio_mean / portfolio_std) * np.sqrt(252)  # Annualized
+    
+    return {
+        "var": var,
+        "daily_volatility": portfolio_std,
+        "annualized_volatility": portfolio_std * np.sqrt(252),
+        "expected_return": portfolio_mean,
+        "annualized_return": portfolio_mean * 252,
+        "sharpe_ratio": sharpe_ratio
+    }
+
+def calculate_returns(
+    prices: Union[pd.Series, np.ndarray, list],
+    method: str = 'log'
+) -> pd.Series:
+    """
+    Calculate returns from a price series.
+    
+    Args:
+        prices (Union[pd.Series, np.ndarray, list]): Series of asset prices
+        method (str): Method to calculate returns - 'log' or 'simple'
+    
+    Returns:
+        pd.Series: Series of returns
+    """
+    if not isinstance(prices, pd.Series):
+        prices = pd.Series(prices)
+    
+    if method == 'log':
+        returns = np.log(prices / prices.shift(1))
+    elif method == 'simple':
+        returns = (prices / prices.shift(1)) - 1
+    else:
+        raise ValueError("method must be either 'log' or 'simple'")
+    
+    return returns
+
+def historical_var(
+    returns: Union[pd.Series, np.ndarray, list],
+    confidence_level: float = 0.95,
+    investment_value: float = 1.0
+) -> float:
+    """
+    Calculate historical Value at Risk (VaR) for a series of returns.
+    
+    Args:
+        returns (Union[pd.Series, np.ndarray, list]): Series of asset/portfolio returns
+        confidence_level (float): Confidence level for VaR calculation (default: 0.95)
+        investment_value (float): Current value of the investment (default: 1.0)
+    
+    Returns:
+        float: Value at Risk at the specified confidence level
+    """
+    if not isinstance(returns, pd.Series):
+        returns = pd.Series(returns)
+    
+    if not 0 < confidence_level < 1:
+        raise ValueError("Confidence level must be between 0 and 1")
+    
+    # Calculate the percentile corresponding to the confidence level
+    var_percentile = 1 - confidence_level
+    var = np.percentile(returns, var_percentile * 100)
+    
+    # Convert to monetary value
+    var_value = investment_value * abs(var)
+    
+    return float(var_value)
+
+def parametric_var(
+    returns: Union[pd.Series, np.ndarray, list],
+    confidence_level: float = 0.95,
+    investment_value: float = 1.0
+) -> float:
+    """
+    Calculate parametric (Gaussian) Value at Risk (VaR).
+    
+    Args:
+        returns (Union[pd.Series, np.ndarray, list]): Series of asset/portfolio returns
+        confidence_level (float): Confidence level for VaR calculation (default: 0.95)
+        investment_value (float): Current value of the investment (default: 1.0)
+    
+    Returns:
+        float: Value at Risk at the specified confidence level
+    """
+    if not isinstance(returns, pd.Series):
+        returns = pd.Series(returns)
+    
+    if not 0 < confidence_level < 1:
+        raise ValueError("Confidence level must be between 0 and 1")
+    
+    # Calculate mean and standard deviation of returns
+    mu = returns.mean()
+    sigma = returns.std()
+    
+    # Find the z-score for the confidence level
+    z_score = stats.norm.ppf(1 - confidence_level)
+    
+    # Calculate VaR
+    var = -(mu + z_score * sigma)
+    var_value = investment_value * abs(var)
+    
+    return var_value
+
+def portfolio_var(
+    returns: pd.DataFrame,
+    weights: Union[list, np.ndarray],
+    confidence_level: float = 0.95,
+    investment_value: float = 1.0,
+    method: str = 'historical'
+) -> float:
+    """
+    Calculate Value at Risk (VaR) for a portfolio of assets.
+    
+    Args:
+        returns (pd.DataFrame): DataFrame where each column represents asset returns
+        weights (Union[list, np.ndarray]): Portfolio weights for each asset
+        confidence_level (float): Confidence level for VaR calculation (default: 0.95)
+        investment_value (float): Current value of the investment (default: 1.0)
+        method (str): VaR calculation method - 'historical' or 'parametric'
+    
+    Returns:
+        float: Portfolio Value at Risk at the specified confidence level
+    """
+    if len(weights) != returns.shape[1]:
+        raise ValueError("Number of weights must match number of assets")
+    
+    weights = np.array(weights)
+    if not np.isclose(np.sum(weights), 1.0):
+        raise ValueError("Weights must sum to 1")
+    
+    # Calculate portfolio returns
+    portfolio_returns = returns.dot(weights)
+    
+    if method == 'historical':
+        return historical_var(portfolio_returns, confidence_level, investment_value)
+    elif method == 'parametric':
+        return parametric_var(portfolio_returns, confidence_level, investment_value)
+    else:
+        raise ValueError("method must be either 'historical' or 'parametric'")
+
+def calculate_cumulative_yield(
+    prices: Union[pd.Series, pd.DataFrame],
+    method: str = 'simple'
+) -> Union[pd.Series, pd.DataFrame]:
+    """
+    Calculate the cumulative yield (return) relative to the start date.
+    
+    Args:
+        prices (Union[pd.Series, pd.DataFrame]): Price series or DataFrame of prices.
+            If DataFrame, calculates cumulative yield for each column.
+        method (str): Method to calculate returns
+            'simple': (current_price - start_price) / start_price * 100
+            'log': (exp(sum(log_returns)) - 1) * 100
+    
+    Returns:
+        Union[pd.Series, pd.DataFrame]: Cumulative yield in percentage terms
+        
+    Example:
+        If stock starts at $100 and goes to $120, cumulative yield is 20%
+        If it then goes to $150, cumulative yield is 50% (relative to start)
+    """
+    if not isinstance(prices, (pd.Series, pd.DataFrame)):
+        prices = pd.Series(prices)
+    
+    if method not in ['simple', 'log']:
+        raise ValueError("method must be either 'simple' or 'log'")
+    
+    if isinstance(prices, pd.Series):
+        start_price = prices.iloc[0]
+        if method == 'simple':
+            cum_yield = ((prices - start_price) / start_price) * 100
+        else:  # log returns
+            returns = calculate_returns(prices, method='log')
+            cum_yield = (np.exp(returns.cumsum()) - 1) * 100
+            
+    else:  # DataFrame
+        cum_yield = pd.DataFrame(index=prices.index)
+        for column in prices.columns:
+            start_price = prices[column].iloc[0]
+            if method == 'simple':
+                cum_yield[column] = ((prices[column] - start_price) / start_price) * 100
+            else:  # log returns
+                returns = calculate_returns(prices[column], method='log')
+                cum_yield[column] = (np.exp(returns.cumsum()) - 1) * 100
+    
+    return cum_yield
