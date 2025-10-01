@@ -1,16 +1,12 @@
 """
 Flask frontend for VaR simulation and stock analysis.
 """
-import sys
-sys.path.append('../')
-
 import requests
 import json
 
 from flask import Flask, render_template, request
 
 from src.metrics import historical_var, parametric_var
-
 
 app = Flask(__name__)
 
@@ -50,7 +46,21 @@ def stock_analysis():
             #     error_msg = response.json().get('detail', 'Unknown error occurred')
             #     return render_template('stock_analysis.html', error=error_msg)
                 
+            from src.data import fetch_stock_data
+            from src.visualization import plot_stock_analysis
 
+            return render_template(
+                'stock_analysis.html',
+                plot=plot_stock_analysis(
+                    fetch_stock_data(
+                        ticker,
+                        days=int(days) if days else 365,
+                        end_date=end_date if end_date else None
+                    ),
+                    show_volume=True,
+                    show_yield=True,
+                ).to_html()
+            )
             
         except Exception as e:
             return render_template('stock_analysis.html', error=str(e))
