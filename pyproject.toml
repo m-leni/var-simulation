@@ -1,0 +1,28 @@
+[project]
+name = "var-simulation"
+version = "0.1.0"
+description = "Aplicación para estimación del Value At Risk e KPIs financieros."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.118.0",
+    "flask>=3.1.2",
+    "pandas>=2.3.3",
+    "plotly>=6.3.0",
+    "scipy>=1.16.2",
+    "uvicorn>=0.37.0",
+    "yfinance>=0.2.66",
+]
+
+[tool.uv.workspace]
+members = [
+    ".",
+]
+
+[tool.uv.sources]
+var-simulation = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "var-simulation",
+]
