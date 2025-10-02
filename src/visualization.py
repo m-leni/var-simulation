@@ -110,7 +110,7 @@ def plot_stock_analysis(
         
         fig.add_trace(
             go.Bar(
-                x=df.index,
+                x=df['Date'],
                 y=df['Volume'],
                 name='Volume',
                 marker_color=colors,
