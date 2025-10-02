@@ -292,11 +292,7 @@ def portfolio_var(
     """
     if len(weights) != returns.shape[1]:
         raise ValueError("Number of weights must match number of assets")
-    
-    weights = np.array(weights)
-    if not np.isclose(np.sum(weights), 1.0):
-        raise ValueError("Weights must sum to 1")
-    
+        
     # Calculate portfolio returns
     portfolio_returns = returns.dot(weights)
     

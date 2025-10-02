@@ -215,7 +215,7 @@ elif page == "Portfolio VaR":
         # Validate inputs
         if not all(tickers) or not all(weights):
             st.error("Please fill in all tickers and weights")
-        elif not 0.99 < sum(weights) < 1.01:
+        elif not sum(weights) - 1.00 <= 0.001:
             st.error("Weights must sum to 1")
         else:
             with st.spinner("Calculating Portfolio VaR..."):
@@ -236,7 +236,7 @@ elif page == "Portfolio VaR":
                         all_returns[ticker] = stock_returns
 
                     # Calculate VaR and risk metrics
-                    result = portfolio_var(
+                    var_result = portfolio_var(
                         returns=all_returns,
                         weights=np.array(weights),
                         confidence_level=confidence_level,
@@ -244,20 +244,56 @@ elif page == "Portfolio VaR":
                         method=method
                     )
 
-                    # Add portfolio composition to the result
-                    result["portfolio_composition"] = {
-                        ticker: weight for ticker, weight in zip(tickers, weights)
+                    # Calculate additional portfolio metrics
+                    portfolio_returns = all_returns.dot(weights)
+                    portfolio_mean = portfolio_returns.mean()
+                    portfolio_std = portfolio_returns.std()
+                    
+                    result = {
+                        'var': var_result,
+                        'portfolio_returns': portfolio_returns,
+                        'daily_mean': portfolio_mean,
+                        'daily_std': portfolio_std,
+                        'annualized_return': portfolio_mean * 252,
+                        'annualized_std': portfolio_std * np.sqrt(252),
+                        'sharpe_ratio': (portfolio_mean / portfolio_std) * np.sqrt(252) if portfolio_std != 0 else 0
                     }
 
                     # Display results
                     if result is not None:
                         col1, col2 = st.columns(2)
                         
+                        col1, col2, col3 = st.columns(3)
+                        
                         with col1:
                             st.metric(
                                 f"Portfolio VaR ({method})",
-                                f"${result:,.2f}",
+                                f"${float(result['var']):,.2f}",
                                 help=f"Maximum potential loss at {confidence_level*100}% confidence level"
+                            )
+                            st.metric(
+                                "Daily Volatility",
+                                f"{result['daily_std']*100:.2f}%",
+                                help="Standard deviation of daily returns"
+                            )
+                            
+                        with col2:
+                            st.metric(
+                                "Expected Annual Return",
+                                f"{result['annualized_return']*100:.2f}%",
+                                help="Annualized expected return based on historical data"
+                            )
+                            st.metric(
+                                "Annual Volatility",
+                                f"{result['annualized_std']*100:.2f}%",
+                                help="Annualized standard deviation of returns"
+                            )
+                            
+                        with col3:
+                            st.metric(
+                                "Sharpe Ratio",
+                                f"{result['sharpe_ratio']:.2f}",
+                                help="Risk-adjusted return measure (higher is better)"
                             )
                             
                         # Display additional portfolio metrics
