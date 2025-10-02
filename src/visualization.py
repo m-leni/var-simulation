@@ -55,7 +55,7 @@ def plot_stock_analysis(
     # Add candlestick chart
     fig.add_trace(
         go.Candlestick(
-            x=df.index,
+            x=df['Date'],
             open=df['Open'],
             high=df['High'],
             low=df['Low'],
@@ -69,7 +69,7 @@ def plot_stock_analysis(
     if 'ema50' in df.columns:
         fig.add_trace(
             go.Scatter(
-                x=df.index,
+                x=df['Date'],
                 y=df['ema50'],
                 name='EMA 50',
                 line=dict(color='rgba(255, 165, 0, 0.8)', width=1.5)
@@ -80,7 +80,7 @@ def plot_stock_analysis(
     if 'ema200' in df.columns:
         fig.add_trace(
             go.Scatter(
-                x=df.index,
+                x=df['Date'],
                 y=df['ema200'],
                 name='EMA 200',
                 line=dict(color='rgba(46, 139, 87, 0.8)', width=1.5)
@@ -93,7 +93,7 @@ def plot_stock_analysis(
     if show_yield and 'yield' in df.columns:
         fig.add_trace(
             go.Scatter(
-                x=df.index,
+                x=df['Date'],
                 y=df['yield'],
                 name='Cumulative Yield',
                 line=dict(color='blue', width=2),
