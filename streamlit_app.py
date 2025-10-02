@@ -12,6 +12,16 @@ from datetime import datetime, timedelta
 # Configuration
 API_BASE_URL = "http://localhost:8000"
 
+# Import local modules
+from src.data import fetch_stock_data
+from src.visualization import plot_stock_analysis
+from src.metrics import (
+    historical_var,
+    parametric_var,
+    calculate_returns,
+    portfolio_var
+)
+
 # Page config
 st.set_page_config(
     page_title="VaR Simulation",
@@ -25,61 +35,6 @@ page = st.sidebar.selectbox(
     ["Home", "Stock Analysis", "Single Asset VaR", "Portfolio VaR"]
 )
 
-# Helper functions
-def fetch_stock_data(ticker: str, days: int = 252, end_date: str = None):
-    """Fetch stock data from the API."""
-    response = requests.post(
-        f"{API_BASE_URL}/",
-        headers={"Content-Type": "application/json"},
-        json={
-            "ticker": ticker,
-            "days": days,
-            "end_date": end_date
-        }
-    )
-    if response.status_code == 200:
-        return response.json()
-    else:
-        st.error(f"Error fetching data: {response.json().get('detail', 'Unknown error')}")
-        return None
-
-def calculate_var(returns, confidence_level: float = 0.95, investment_value: float = 1.0):
-    """Calculate VaR using the API."""
-    response = requests.post(
-        f"{API_BASE_URL}/var-simulation",
-        headers={"Content-Type": "application/json"},
-        json={
-            "returns": returns,
-            "confidence_level": confidence_level,
-            "investment_value": investment_value
-        }
-    )
-    if response.status_code == 200:
-        return response.json()
-    else:
-        st.error(f"Error calculating VaR: {response.json().get('detail', 'Unknown error')}")
-        return None
-
-def calculate_portfolio_var(tickers, weights, days=252, confidence_level=0.95, 
-                          investment_value=100000, method="historical"):
-    """Calculate portfolio VaR using the API."""
-    response = requests.post(
-        f"{API_BASE_URL}/portfolio-var",
-        headers={"Content-Type": "application/json"},
-        json={
-            "tickers": tickers,
-            "weights": weights,
-            "days": days,
-            "confidence_level": confidence_level,
-            "investment_value": investment_value,
-            "method": method
-        }
-    )
-    if response.status_code == 200:
-        return response.json()
-    else:
-        st.error(f"Error calculating portfolio VaR: {response.json().get('detail', 'Unknown error')}")
-        return None
 
 # Home page
 if page == "Home":
@@ -113,7 +68,17 @@ elif page == "Stock Analysis":
     
     if st.button("Analyze Stock"):
         with st.spinner("Fetching data..."):
-            result = fetch_stock_data(ticker, days, end_date.strftime("%Y-%m-%d"))
+            result = {
+                'html': plot_stock_analysis(
+                    fetch_stock_data(
+                        ticker,
+                        days=int(days) if days else 365,
+                        end_date=end_date if end_date else None
+                    ),
+                    show_volume=True,
+                    show_yield=True,
+                )
+            }
             if result and 'html' in result:
                 st.plotly_chart(go.Figure(result['html']), use_container_width=True)
 
@@ -160,7 +125,10 @@ elif page == "Single Asset VaR":
             
             if returns:
                 with st.spinner("Calculating VaR..."):
-                    result = calculate_var(returns, confidence_level, investment_value)
+                    result = {
+                        'historical_var': historical_var(returns, confidence_level, investment_value),
+                        'parametric_var': parametric_var(returns, confidence_level, investment_value),
+                    }
                     if result:
                         col1, col2 = st.columns(2)
                         with col1:
@@ -176,7 +144,7 @@ elif page == "Single Asset VaR":
                                 help="Maximum potential loss assuming normal distribution"
                             )
             else:
-                st.error("Please enter valid return values")
+                st.error("Please enter valid returns values")
 
 # Portfolio VaR page
 elif page == "Portfolio VaR":
@@ -218,7 +186,7 @@ elif page == "Portfolio VaR":
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        days = st.number_input("Historical Days", min_value=1, value=252)
+        days = st.number_input("Historical Days", min_value=1, value=252, max_value=500)
         
     with col2:
         confidence_level = st.slider(
@@ -231,10 +199,10 @@ elif page == "Portfolio VaR":
         
     with col3:
         investment_value = st.number_input(
-            "Total Investment Value",
-            min_value=0.0,
-            value=100000.0,
-            step=1000.0
+            "Total Investment Value USD",
+            min_value=0,
+            value=100000,
+            step=1000
         )
         
     method = st.selectbox(
@@ -247,35 +215,70 @@ elif page == "Portfolio VaR":
         # Validate inputs
         if not all(tickers) or not all(weights):
             st.error("Please fill in all tickers and weights")
-        elif not 0.99 <= sum(weights) <= 1.01:
+        elif not 0.99 < sum(weights) < 1.01:
             st.error("Weights must sum to 1")
         else:
             with st.spinner("Calculating Portfolio VaR..."):
-                result = calculate_portfolio_var(
-                    tickers, weights, days, confidence_level,
-                    investment_value, method
-                )
-                
-                if result:
-                    # Display results in an organized way
-                    col1, col2, col3 = st.columns(3)
+                try:
+                    # Fetch data for all stocks
+                    all_returns = pd.DataFrame()
                     
-                    with col1:
-                        st.metric("Value at Risk (VaR)", f"${result['var']:,.2f}")
-                        st.metric("Daily Volatility", f"{result['daily_volatility']*100:.2f}%")
+                    for ticker, weight in zip(tickers, weights):
+                        df = fetch_stock_data(ticker, days=days)
+                        if df.empty:
+                            raise ValueError(f"No data found for ticker {ticker}")
                         
-                    with col2:
-                        st.metric("Expected Daily Return", f"{result['expected_return']*100:.2f}%")
-                        st.metric("Annualized Volatility", f"{result['annualized_volatility']*100:.2f}%")
+                        # Calculate returns for this stock
+                        stock_returns = pd.Series(
+                            calculate_returns(df['Close'].values), 
+                            name=ticker
+                        )
+                        all_returns[ticker] = stock_returns
+
+                    # Calculate VaR and risk metrics
+                    result = portfolio_var(
+                        returns=all_returns,
+                        weights=np.array(weights),
+                        confidence_level=confidence_level,
+                        investment_value=investment_value,
+                        method=method
+                    )
+
+                    # Add portfolio composition to the result
+                    result["portfolio_composition"] = {
+                        ticker: weight for ticker, weight in zip(tickers, weights)
+                    }
+
+                    # Display results
+                    if result is not None:
+                        col1, col2 = st.columns(2)
                         
-                    with col3:
-                        st.metric("Annualized Return", f"{result['annualized_return']*100:.2f}%")
-                        st.metric("Sharpe Ratio", f"{result['sharpe_ratio']:.2f}")
-                    
-                    # Portfolio composition table
-                    st.subheader("Portfolio Composition")
-                    composition_df = pd.DataFrame({
-                        'Ticker': result['portfolio_composition'].keys(),
-                        'Weight': [f"{w*100:.1f}%" for w in result['portfolio_composition'].values()]
-                    })
-                    st.table(composition_df)
+                        with col1:
+                            st.metric(
+                                f"Portfolio VaR ({method})",
+                                f"${result:,.2f}",
+                                help=f"Maximum potential loss at {confidence_level*100}% confidence level"
+                            )
+                            
+                        # Display additional portfolio metrics
+                        st.subheader("Portfolio Composition")
+                        composition_df = pd.DataFrame({
+                            'Ticker': tickers,
+                            'Weight': [f"{w*100:.1f}%" for w in weights],
+                            'Investment Amount': [f"${w*investment_value:,.2f}" for w in weights]
+                        })
+                        st.table(composition_df)
+                        
+                        # Display returns statistics
+                        st.subheader("Returns Statistics")
+                        returns_stats = pd.DataFrame({
+                            'Daily Mean': [f"{all_returns[ticker].mean()*100:.2f}%" for ticker in tickers],
+                            'Daily Std Dev': [f"{all_returns[ticker].std()*100:.2f}%" for ticker in tickers],
+                            'Min Return': [f"{all_returns[ticker].min()*100:.2f}%" for ticker in tickers],
+                            'Max Return': [f"{all_returns[ticker].max()*100:.2f}%" for ticker in tickers]
+                        }, index=tickers)
+                        st.table(returns_stats)
+
+                except Exception as e:
+                    st.error(f"Error calculating portfolio VaR: {str(e)}")
+                    st.stop()
