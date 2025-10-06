@@ -235,6 +235,9 @@ elif page == "Portfolio VaR":
                         )
                         all_returns[ticker] = stock_returns
 
+                    # Align returns across tickers by dropping any rows with NaN
+                    all_returns = all_returns.dropna()
+
                     # Calculate VaR and risk metrics
                     var_result = portfolio_var(
                         returns=all_returns,
