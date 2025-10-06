@@ -35,7 +35,7 @@ def create_db(conn: sql.Connection):
                 [Free Cash Flow] FLOAT,
                 [Common Stock Dividend Paid] FLOAT,
                 [Basic EPS] FLOAT,
-                PRIMARY KEY (Ticker)
+                PRIMARY KEY (Year, Ticker)
             )"""
         )
         conn.commit()
