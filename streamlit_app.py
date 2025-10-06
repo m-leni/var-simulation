@@ -16,6 +16,7 @@ from src.data import (
     fetch_stock_data,
     financial_statement
 )
+from src.data import get_stock_info
 from src.visualization import plot_stock_analysis, plot_financial_metrics
 from src.metrics import (
     historical_var,
@@ -436,11 +437,21 @@ elif page == "Portfolio VaR":
                                 help="Risk-adjusted return measure (higher is better)"
                             )
                             
+                        # Fetch company info for each ticker
+                        info_map = {}
+                        for t in tickers:
+                            try:
+                                info_map[t] = get_stock_info(t)
+                            except Exception:
+                                info_map[t] = {}
+
                         # Display additional portfolio metrics
                         st.subheader("Portfolio Composition")
                         composition_df = pd.DataFrame({
+                            'Industry': [info_map.get(t, {}).get('industry', 'Unknown') for t in tickers],
+                            'Sector': [info_map.get(t, {}).get('sector', 'Unknown') for t in tickers],
                             'Weight': [f"{w*100:.1f}%" for w in weights],
-                            'Investment Amount': [f"${w*investment_value:,.2f}" for w in weights]
+                            'Investment Amount': [f"${w*investment_value:,.2f}" for w in weights],
                         }, index=tickers)
                         st.table(composition_df)
                         
@@ -453,6 +464,46 @@ elif page == "Portfolio VaR":
                             'Max Return': [f"{all_returns[ticker].max()*100:.2f}%" for ticker in tickers]
                         }, index=tickers)
                         st.table(returns_stats)
+
+                        # Aggregate exposure by Sector / Industry
+                        st.subheader("Exposure by Sector / Industry")
+
+                        group_by = st.selectbox("Group exposure by:", ["Industry", "Sector"]) 
+
+                        # Build exposure DataFrame
+                        exposure_rows = []
+                        for t, w in zip(tickers, weights):
+                            info = info_map.get(t, {})
+                            sector = info.get('sector', 'Unknown')
+                            industry = info.get('industry', 'Unknown')
+                            exposure_rows.append({
+                                'Ticker': t,
+                                'Weight': w,
+                                'Investment': w * investment_value,
+                                'Sector': sector,
+                                'Industry': industry
+                            })
+
+                        exposure_df = pd.DataFrame(exposure_rows)
+                        if group_by == 'Sector':
+                            agg = exposure_df.groupby('Sector').agg({
+                                'Weight': 'sum',
+                                'Investment': 'sum'
+                            }).sort_values('Weight', ascending=False)
+                        else:
+                            agg = exposure_df.groupby('Industry').agg({
+                                'Weight': 'sum',
+                                'Investment': 'sum'
+                            }).sort_values('Weight', ascending=False)
+
+                        # Format and display
+                        agg_display = agg.copy()
+                        agg_display['Weight'] = (agg_display['Weight'] * 100).round(2).map(lambda x: f"{x}%")
+                        agg_display['Investment'] = agg_display['Investment'].map(lambda x: f"${x:,.2f}")
+                        st.table(agg_display)
+
+                        # Show bar chart of weight exposure
+                        st.bar_chart(agg['Weight'])
 
                 except Exception as e:
                     st.error(f"Error calculating portfolio VaR: {str(e)}")
