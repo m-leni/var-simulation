@@ -178,6 +178,7 @@ def portfolio_var(
         "sharpe_ratio": sharpe_ratio
     }
 
+
 def calculate_returns(
     prices: Union[pd.Series, np.ndarray, list],
     method: str = 'log'
@@ -203,6 +204,7 @@ def calculate_returns(
         raise ValueError("method must be either 'log' or 'simple'")
     
     return returns
+
 
 def historical_var(
     returns: Union[pd.Series, np.ndarray, list],
@@ -234,6 +236,7 @@ def historical_var(
     var_value = investment_value * abs(var)
     
     return float(var_value)
+
 
 def parametric_var(
     returns: Union[pd.Series, np.ndarray, list],
@@ -269,6 +272,7 @@ def parametric_var(
     var_value = investment_value * abs(var)
     
     return var_value
+
 
 def portfolio_var(
     returns: pd.DataFrame,
@@ -349,3 +353,72 @@ def calculate_cumulative_yield(
                 cum_yield[column] = (np.exp(returns.cumsum()) - 1) * 100
     
     return cum_yield
+
+
+def historic_pe_ratio(
+    prices: Union[pd.DataFrame, pd.Series],
+    financials: pd.DataFrame,
+    price_date_col: str = 'Date',
+    price_close_col: str = 'Close',
+    eps_col: str = 'Basic EPS',
+    use_last_available: bool = True
+) -> pd.Series:
+    """
+    Calculate historical Price-to-Earnings (P/E) ratio as close price divided by yearly EPS.
+
+    Args:
+        prices: DataFrame or Series containing closing prices. If DataFrame, must contain
+            a date column specified by `price_date_col` or have a DatetimeIndex.
+        financials: DataFrame containing EPS information. Expected either:
+            - a 'Year' column and an EPS column; or
+            - a 'Date' column with quarterly entries and an EPS column (will be grouped by year)
+        price_date_col: Name of the date column in `prices` (default 'Date'). Ignored if `prices` has DatetimeIndex.
+        price_close_col: Name of the close price column in `prices` (default 'Close').
+        eps_candidates: Optional list of column names to try for EPS (defaults to common names).
+        use_last_available: If True, for a price date use the latest EPS year that is <= the price year.
+
+    Returns:
+        pd.Series: P/E ratio indexed by the prices' dates.
+    """
+
+    # Minimal implementation: use last available annual EPS for each price date
+    # Prepare price series
+    if isinstance(prices, pd.Series):
+        price_ser = prices.copy()
+        price_ser.index = pd.to_datetime(price_ser.index)
+        if price_ser.name is None:
+            price_ser.name = 'Close'
+    else:
+        price_df = prices.copy()
+        if price_date_col in price_df.columns:
+            price_df[price_date_col] = pd.to_datetime(price_df[price_date_col])
+            price_df = price_df.set_index(price_date_col)
+        price_ser = price_df[price_close_col].copy()
+
+    # Prepare yearly EPS
+    fin = financials.copy()
+    if 'Year' in fin.columns:
+        yearly_eps = fin.set_index('Year')[eps_col].astype(float)
+    else:
+        fin['Date'] = pd.to_datetime(fin['Date'])
+        fin['Year'] = fin['Date'].dt.year
+        yearly_eps = fin.groupby('Year')[eps_col].sum()
+
+    yearly_eps = yearly_eps.sort_index()
+
+    # Build a reindexed series covering the range needed and forward-fill to use last available EPS
+    min_year = int(min(yearly_eps.index.min(), price_ser.index.year.min()))
+    max_year = int(max(yearly_eps.index.max(), price_ser.index.year.max()))
+    reindexed = yearly_eps.reindex(range(min_year, max_year + 1)).ffill()
+
+    # Map each price date to the EPS for that year (or last available prior year via ffill)
+    years = price_ser.index.year
+    eps_for_dates = reindexed.loc[years].values
+    eps_series = pd.Series(eps_for_dates, index=price_ser.index)
+
+    # Compute P/E (price / EPS) and replace infinities
+    pe = price_ser / eps_series
+    pe = pe.replace([np.inf, -np.inf], np.nan)
+    pe.name = 'P/E'
+
+    return pe
