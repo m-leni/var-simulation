@@ -2,6 +2,8 @@
 This module provides functions to fetch stock data from Yahoo Finance API.
 """
 import os
+import ssl
+from bs4 import BeautifulSoup
 
 import numpy as np
 import pandas as pd
@@ -15,6 +17,70 @@ from .metrics import calculate_cumulative_yield
 
 from typing import Optional, Union, Dict
 
+def scrape_qqq_holdings() -> pd.DataFrame:
+    """
+    Scrape QQQ holdings table from companiesmarketcap.com.
+    
+    Returns:
+        pd.DataFrame: DataFrame containing QQQ holdings with columns:
+            - Weight: Percentage weight in the index
+            - Company Name: Name of the company
+            - Ticker: Stock ticker symbol
+            - Coupon Rate: Coupon rate if applicable
+            - Shares Held: Number of shares held
+    """
+    url = "https://companiesmarketcap.com/invesco-qqq-trust/holdings/"
+    
+    # Set up headers to mimic a browser request
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Connection': 'keep-alive',
+    }
+    
+    # Create SSL context that doesn't verify certificates
+    context = ssl._create_unverified_context()
+    
+    # Make the request
+    response = requests.get(url, headers=headers, verify=False)
+    response.raise_for_status()
+    
+    # Parse with BeautifulSoup
+    soup = BeautifulSoup(response.text, 'html.parser')
+    
+    # Find the table
+    table = soup.find('div', {'class': 'table-container'})
+    
+    if not table:
+        raise ValueError("Could not find holdings table on the page")
+    
+    # Extract data
+    rows = []
+    for row in table.find_all('tr'):
+        cols = row.find_all('td')
+        if len(cols) >= 5:  # Ensure row has all expected columns
+            weight = cols[0].text.strip().rstrip('%')
+            company = cols[1].text.strip()
+            ticker = cols[2].text.strip()
+            coupon = cols[3].text.strip()
+            shares = cols[4].text.strip().replace(',', '')
+            
+            rows.append({
+                'Weight': float(weight) / 100 if weight else None,
+                'Company Name': company,
+                'Ticker': ticker,
+                'Coupon Rate': float(coupon.rstrip('%'))/100 if coupon and coupon != '-' else None,
+                'Shares Held': int(shares) if shares and shares != '-' else None
+            })
+    
+    # Create DataFrame
+    df = pd.DataFrame(rows).drop(columns=['Coupon Rate', 'Shares Held']).reindex(['Ticker', 'Company Name', 'Weight'], axis=1)
+
+    df.to_sql('qqq_holdings_live', if_exists='replace', index=False, con='sqlite:///database.db')
+    
+    return df
+    
 def fetch_financial_data(
     ticker: str,
 ) -> pd.DataFrame:
@@ -294,3 +360,153 @@ def get_stock_info(ticker: str) -> dict:
         return info
     except Exception as e:
         raise ValueError(f"Error fetching info for ticker {ticker}: {str(e)}")
+
+def get_tickers() -> pd.DataFrame:
+    from io import StringIO
+    import requests
+
+    response = requests.get("https://www.alphavantage.co/query?function=LISTING_STATUS&apikey=demo")
+    data = response.text
+    df = pd.read_csv(StringIO(data))
+
+    df['name'] = df['name'].fillna('')
+
+    df.rename(columns={
+        'symbol': 'Ticker',
+        'name': 'Company Name',
+        'exchange': 'Exchange',
+        'assetType': 'Asset Type',
+        'ipoDate': 'IPO Date'
+    }, inplace=True)
+
+    df.drop(columns=['delistingDate', 'status'], inplace=True)
+
+    df.to_sql('tickers', if_exists='replace', index=False, con='sqlite:///database.db')
+    
+    return df
+
+
+def get_sp500_tickers(save_locally: bool = False) -> pd.DataFrame:
+    """
+    Fetch the current list of S&P 500 companies from Wikipedia.
+    
+    Returns:
+        pd.DataFrame: DataFrame containing S&P 500 companies with columns:
+            - Symbol: Stock ticker
+            - Security: Company name
+            - GICS Sector: Industry sector
+            - GICS Sub-Industry: Specific industry category
+            - Headquarters Location: Company HQ location
+            - Date Added: When stock was added to S&P 500
+            - CIK: SEC Central Index Key
+    
+    Raises:
+        ValueError: If unable to fetch or parse the Wikipedia table
+    """
+    import ssl
+    from bs4 import BeautifulSoup
+    
+    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+    
+    try:
+        # Create a custom SSL context that doesn't verify certificates
+        context = ssl._create_unverified_context()
+        
+        # Fetch the page with SSL context
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        response = requests.get(url, headers=headers, verify=False)
+        response.raise_for_status()
+        
+        # Parse with BeautifulSoup
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Find the first table (S&P 500 companies table)
+        table = soup.find('table', {'class': 'wikitable'})
+        
+        # Extract headers
+        headers = []
+        for th in table.find_all('th'):
+            header = th.text.strip()
+            headers.append(header)
+        
+        # Extract rows
+        rows = []
+        for tr in table.find_all('tr')[1:]:  # Skip header row
+            row = []
+            for td in tr.find_all('td'):
+                row.append(td.text.strip())
+            if row:  # Skip empty rows
+                rows.append(row)
+        
+        # Create DataFrame
+        df = pd.DataFrame(rows, columns=headers)
+        
+        # Clean up the data
+        df = df.rename(columns={
+            'Symbol': 'Ticker',
+            'Security': 'Company Name',
+            'GICS Sector': 'Sector',
+            'GICS Sub-Industry': 'Industry',
+            'Headquarters Location': 'Location',
+            'Date added': 'Date Added',
+        })
+        
+        # Clean and convert data types
+        df['Ticker'] = df['Ticker'].str.strip()
+        df['CIK'] = df['CIK'].astype(str).str.zfill(10)
+        df['Date Added'] = pd.to_datetime(df['Date Added'], errors='coerce')
+        
+        if save_locally:
+            # Cache the results
+            os.makedirs('data', exist_ok=True)
+            df.to_csv('data/sp500_companies.csv', index=False)
+        
+        return df
+        
+    except Exception as e:
+        # Try to load cached data if available
+        try:
+            if os.path.exists('data/sp500_companies.csv'):
+                print("Warning: Using cached S&P 500 data due to fetch error")
+                return pd.read_csv('data/sp500_companies.csv')
+        except:
+            pass
+        
+        raise ValueError(f"Error fetching S&P 500 companies: {str(e)}")
+
+
+def get_snp_market_caps(sp: pd.DataFrame) -> pd.DataFrame:
+    """
+    Get market capitalizations for S&P 500 companies.
+
+    Args:
+        sp (pd.DataFrame): DataFrame containing S&P 500 tickers.
+
+    Returns:
+        dict: Dictionary mapping ticker symbols to their market capitalizations.
+    """
+    all = yf.Tickers(' '.join(sp['Ticker'].tolist()))
+
+    return {ticker: info.fast_info.get('marketCap', None) for ticker, info in all.tickers.items()}
+
+
+def get_qqq_tickers() -> pd.DataFrame:
+    """
+    Load QQQ (Nasdaq-100) components from the local CSV file.
+
+    https://companiesmarketcap.com/invesco-qqq-trust/holdings/
+    
+    Returns:
+        pd.DataFrame: DataFrame containing QQQ companies with columns:
+            - Company Name: Company name
+            - Index Weight: Weight in the index as percentage
+    """
+    try:
+        df = pd.read_csv('data/qqq_companies.csv')
+        # Convert Index Weight from string percentage to float
+        df['Index Weight'] = df['Index Weight'].str.rstrip('%').astype('float') / 100.0
+        return df
+    except Exception as e:
+        raise ValueError(f"Error loading QQQ companies data: {str(e)}")

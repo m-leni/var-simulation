@@ -16,7 +16,7 @@ from src.data import (
     fetch_stock_data,
     financial_statement
 )
-from src.data import get_stock_info
+from src.data import get_stock_info, scrape_qqq_holdings
 from src.visualization import plot_stock_analysis, plot_financial_metrics
 from src.metrics import (
     historical_var,
@@ -34,6 +34,9 @@ CONN = sql.connect("database.db")
 
 create_db(conn=CONN)
 
+qqq = scrape_qqq_holdings()
+sp500 = pd.read_csv('data/sp500_caps.csv')
+
 # Page config
 st.set_page_config(
     page_title="VaR Simulation",
@@ -41,10 +44,13 @@ st.set_page_config(
     layout="wide"
 )
 
+# Import get_sp500_tickers at the top with other imports
+from src.data import get_sp500_tickers, get_qqq_tickers
+
 # Sidebar for navigation
 page = st.sidebar.selectbox(
     "Choose Analysis",
-    ["Home", "Stock Analysis", "Single Asset VaR", "Portfolio VaR"]
+    ["Home", "S&P 500 & Indexes", "Stock Analysis", "Single Asset VaR", "Portfolio VaR"]
 )
 
 # Home page
@@ -56,6 +62,150 @@ if page == "Home":
     - Calculate Value at Risk (VaR) for single assets
     - Analyze portfolio risk metrics
     """)
+
+# S&P 500 & Indexes page
+elif page == "S&P 500 & Indexes":
+    st.title("Market Indexes Components")
+    
+    # Index selector
+    selected_index = st.radio(
+        "Select Index",
+        ["NASDAQ-100 (QQQ)", "S&P 500"],
+        index=0  # Default to QQQ
+    )
+    
+    if selected_index == "NASDAQ-100 (QQQ)":
+        try:
+            # Get QQQ holdings
+            qqq_df = qqq
+            qqq_df['Weight'] = qqq_df['Weight'] * 100  # Convert to percentage for display
+            qqq_df.index = qqq_df.index + 1
+            
+            st.subheader("NASDAQ-100 Index Holdings")
+            
+            # Display metrics
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Total Companies", len(qqq_df))
+
+            # Weight distribution visualization
+            st.subheader("Top 10 Components by Weight")
+            top_10 = qqq_df.head(10)
+            st.bar_chart(data=top_10.set_index('Company Name')['Weight'], sort='-Weight')
+            
+            # Show full table with sorting and filtering
+            st.subheader("All Holdings")
+            st.dataframe(
+                qqq_df,
+                column_config={
+                    "Company Name": st.column_config.TextColumn("Company Name", width="large"),
+                    "Weight": st.column_config.NumberColumn(
+                        "Weight",
+                        format="%.2f%%",
+                        width="medium"
+                    )
+                },
+                hide_index=False
+            )
+            
+            # Download button
+            st.download_button(
+                "Download NASDAQ-100 Holdings",
+                qqq_df.to_csv(index=False).encode('utf-8'),
+                "NASDAQ100_components.csv",
+                "text/csv",
+                key='download-qqq-csv'
+            )
+            
+        except Exception as e:
+            st.error(f"Error loading NASDAQ-100 data: {str(e)}")
+            st.info("Please check if the qqq_companies.csv file exists in the data directory.")
+            
+    else:  # S&P 500
+        with st.spinner("Fetching S&P 500 components..."):
+            try:
+                # Get S&P 500 components
+                sp500_df = sp500
+                sp500_df['Weight'] = sp500_df['Weight'] * 100
+                sp500_df['Market Cap BUSD'] = sp500_df['Market Cap'] / 1e9
+                
+                # Display metrics
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Total Companies", len(sp500_df))
+                with col2:
+                    sectors = sp500_df['Sector'].nunique()
+                    st.metric("Sectors", sectors)
+                with col3:
+                    industries = sp500_df['Industry'].nunique()
+                    st.metric("Industries", industries)
+                with col4:
+                    mkt_cap = np.round(sp500_df['Market Cap BUSD'].sum() / 1000 , 2)
+                    st.metric("Total Market Cap TUSD", mkt_cap)
+                
+                # Add sector distribution
+                st.subheader("Sector Distribution")
+                sector_counts = sp500_df['Sector'].value_counts()
+                st.bar_chart(sector_counts, sort='-count')
+                
+                # Data explorer
+                st.subheader("All Components")
+                
+                # Add filters
+                col1, col2 = st.columns(2)
+                with col1:
+                    sector_filter = st.multiselect(
+                        "Filter by Sector",
+                        options=sorted(sp500_df['Sector'].unique())
+                    )
+                with col2:
+                    industry_filter = st.multiselect(
+                        "Filter by Industry",
+                        options=sorted(sp500_df['Industry'].unique())
+                    )
+                
+                # Apply filters
+                filtered_df = sp500_df.copy()
+                if sector_filter:
+                    filtered_df = filtered_df[filtered_df['Sector'].isin(sector_filter)]
+                if industry_filter:
+                    filtered_df = filtered_df[filtered_df['Industry'].isin(industry_filter)]
+                
+                filtered_df = filtered_df.reindex(columns=
+                    ['Ticker', 'Company Name', 'Weight', 'Market Cap BUSD', 'Sector', 'Industry', 'Founded', 'Date Added']
+                )
+
+                # Show dataframe with filters for searching
+                st.dataframe(
+                    filtered_df,
+                    column_config={
+                        "Ticker": st.column_config.TextColumn("Ticker", width="small"),
+                        "Company Name": st.column_config.TextColumn("Company Name", width="medium"),
+                        "Weight": st.column_config.NumberColumn(
+                            "Weight",
+                            format="%.2f%%",
+                            width="small"
+                        ),
+                        "Sector": st.column_config.TextColumn("Sector", width="medium"),
+                        "Industry": st.column_config.TextColumn("Industry", width="medium"),
+                        "Date Added": st.column_config.DateColumn("IPO", width="small"),
+                        "Location": st.column_config.TextColumn("Location", width="medium"),
+                    },
+                    hide_index=True
+                )
+                
+                # Download button
+                st.download_button(
+                    "Download S&P 500 Holdings",
+                    filtered_df.to_csv(index=False).encode('utf-8'),
+                    "SP500_components.csv",
+                    "text/csv",
+                    key='download-sp500-csv'
+                )
+                
+            except Exception as e:
+                st.error(f"Error loading S&P 500 data: {str(e)}")
+                st.info("Please try refreshing the page or check your internet connection.")
 
 # Stock Analysis page
 elif page == "Stock Analysis":
