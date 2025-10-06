@@ -468,7 +468,7 @@ elif page == "Portfolio VaR":
                         # Aggregate exposure by Sector / Industry
                         st.subheader("Exposure by Sector / Industry")
 
-                        group_by = st.selectbox("Group exposure by:", ["Industry", "Sector"]) 
+                        group_by = st.selectbox("Group exposure by:", ["Industry"]) 
 
                         # Build exposure DataFrame
                         exposure_rows = []
