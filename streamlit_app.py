@@ -1,26 +1,37 @@
 """
 Streamlit frontend for VaR simulation and stock analysis.
 """
-import streamlit as st
-import pandas as pd
+import os
+from dotenv import load_dotenv
+
 import numpy as np
-import plotly.graph_objects as go
-import requests
-import json
-from datetime import datetime, timedelta
+import pandas as pd
+from datetime import date, timedelta
+from dateutil.relativedelta import relativedelta
 
-# Configuration
-API_BASE_URL = "http://localhost:8000"
+import sqlite3 as sql
+import streamlit as st
 
-# Import local modules
-from src.data import fetch_stock_data
-from src.visualization import plot_stock_analysis
+from src.data import (
+    fetch_stock_data,
+    financial_statement
+)
+from src.visualization import plot_stock_analysis, plot_financial_metrics
 from src.metrics import (
     historical_var,
     parametric_var,
     calculate_returns,
     portfolio_var
 )
+from src.database import (
+    create_db,
+    insert_to_stock_data,
+    insert_to_financial_data
+)
+
+CONN = sql.connect("database.db")
+
+create_db(conn=CONN)
 
 # Page config
 st.set_page_config(
@@ -35,53 +46,179 @@ page = st.sidebar.selectbox(
     ["Home", "Stock Analysis", "Single Asset VaR", "Portfolio VaR"]
 )
 
-
 # Home page
 if page == "Home":
     st.title("VaR Simulation and Stock Analysis")
     st.write("""
-    Welcome to the VaR Simulation tool! This application helps you analyze stocks and calculate Value at Risk (VaR) 
-    for both individual assets and portfolios.
-    
-    Choose an analysis type from the sidebar to get started:
-    - **Stock Analysis**: Analyze historical price data and trends for individual stocks
-    - **Single Asset VaR**: Calculate VaR for a single asset using historical returns
-    - **Portfolio VaR**: Calculate VaR for a portfolio of multiple assets
+    Welcome to the VaR Simulation tool. This application allows you to:
+    - Analyze stock price movements, fundamentals & financial performance
+    - Calculate Value at Risk (VaR) for single assets
+    - Analyze portfolio risk metrics
     """)
 
 # Stock Analysis page
 elif page == "Stock Analysis":
     st.title("Stock Analysis")
     
-    col1, col2, col3 = st.columns([2,1,1])
+    col1, col2 = st.columns([2, 1])
     
     with col1:
-        ticker = st.text_input("Enter Stock Ticker", value="AAPL").upper()
+        ticker = st.text_input("Enter Stock Ticker:", value="AAPL")
+    
     with col2:
-        days = st.number_input("Historical Days", min_value=1, value=252)
-    with col3:
-        end_date = st.date_input(
-            "End Date",
-            value=datetime.now().date(),
-            max_value=datetime.now().date()
+        date_option = st.radio(
+            "Select Date Range:",
+            ["Custom Range", "Last N Days"]
         )
     
-    if st.button("Analyze Stock"):
-        with st.spinner("Fetching data..."):
-            result = {
-                'html': plot_stock_analysis(
-                    fetch_stock_data(
-                        ticker,
-                        days=int(days) if days else 365,
-                        end_date=end_date if end_date else None
-                    ),
-                    show_volume=True,
-                    show_yield=True,
-                )
-            }
-            if result and 'html' in result:
-                st.plotly_chart(go.Figure(result['html']), use_container_width=True)
+    if date_option == "Custom Range":
+        col1, col2 = st.columns(2)
+        with col1:
+            start_date = st.date_input(
+                "Start Date",
+                value=date.today() - timedelta(days=252)
+            )
+        with col2:
+            end_date = st.date_input("End Date", value=date.today())
 
+        if start_date >= end_date:
+            st.error("Error: End date must fall after start date.")
+
+        days = (end_date - start_date).days
+
+    elif date_option == "Last N Days":
+        days = st.number_input(
+            "Number of days:", 
+            min_value=1, 
+            value=252, 
+            max_value=500
+        )
+
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days)
+    
+    if st.button("Fetch stock data"):
+        with st.spinner("Fetching data..."):
+            try:
+                # fetch data if exists in db
+                df = pd.read_sql(f"""
+                    SELECT * 
+                    FROM daily_stock_price 
+                    WHERE Ticker = '{ticker}' 
+                        AND Date BETWEEN DATE('now', '-{days} days') AND DATE('now')
+                """, con=CONN)
+
+                if (df.empty) or (df.Date.min() != date.today()-timedelta(days)):
+                    df = fetch_stock_data(
+                        ticker, 
+                        start_date=start_date, 
+                        end_date=end_date
+                    )
+                    insert_to_stock_data(df, CONN)
+
+                fig = plot_stock_analysis(df, show_volume=True, show_yield=True)
+                st.plotly_chart(fig, use_container_width=True)
+                
+            except Exception as e:
+                st.error(f"Error fetching data: {str(e)}")
+
+        # Financial Analysis Section
+        st.subheader("Financial Analysis")
+        
+        try:
+            with st.spinner("Fetching financial data..."):
+                # fetch data if exists in db
+                financial_df = pd.read_sql(f"""
+                    SELECT *
+                    FROM financial_data
+                    WHERE Ticker = '{ticker}'
+                """, con=CONN)
+
+                # Fetch historical and forecast data
+                financial_df = financial_statement(ticker)
+
+                insert_to_financial_data(financial_df, ticker, CONN)
+
+                financial_df.set_index('Year', inplace=True)
+                financial_df.drop(columns=['Ticker'], inplace=True)
+                        
+                # Display the financial data
+                st.write("Financial Metrics (in BUSD)")
+                st.dataframe(
+                    financial_df
+                        #.style.format(':.2f', precision=2)
+                        .style.background_gradient(cmap='RdYlGn', axis=0)
+                )
+                
+                # Add some key insights
+                st.write("### Key Insights")
+                financial_df.reset_index(inplace=True)
+                
+                # Calculate year-over-year growth between the last two available years
+                if 'Year' in financial_df.columns and len(financial_df) >= 2:
+                    dfy = financial_df.copy()
+                    dfy['Year'] = pd.to_numeric(dfy['Year'], errors='coerce')
+                    dfy = dfy.dropna(subset=['Year']).sort_values('Year').reset_index(drop=True)
+                    if len(dfy) >= 2:
+                        prev = dfy.iloc[-2]
+                        last = dfy.iloc[-1]
+                        prev_year = int(prev['Year'])
+                        last_year = int(last['Year'])
+
+                        # Revenue growth
+                        rev_prev = pd.to_numeric(prev.get('Total Revenue', None), errors='coerce')
+                        rev_last = pd.to_numeric(last.get('Total Revenue', None), errors='coerce')
+                        rev_growth = (rev_last / rev_prev - 1) * 100 if pd.notna(rev_prev) and rev_prev != 0 else None
+
+                        # EBITDA growth (fallback to Gross Profit if EBITDA missing)
+                        ebitda_prev = pd.to_numeric(prev.get('EBITDA', prev.get('Gross Profit', None)), errors='coerce')
+                        ebitda_last = pd.to_numeric(last.get('EBITDA', last.get('Gross Profit', None)), errors='coerce')
+                        ebitda_growth = (ebitda_last / ebitda_prev - 1) * 100 if pd.notna(ebitda_prev) and ebitda_prev != 0 else None
+
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if rev_growth is None:
+                                st.metric(f"Revenue {prev_year} → {last_year}", "n/a")
+                            else:
+                                st.metric(
+                                    f"Revenue {prev_year} → {last_year}",
+                                    f"{rev_last:,.2f}",
+                                    delta=f"{rev_growth:.1f}%"
+                                )
+                        with col2:
+                            if ebitda_growth is None:
+                                st.metric(f"EBITDA {prev_year} → {last_year}", "n/a")
+                            else:
+                                st.metric(
+                                    f"EBITDA {prev_year} → {last_year}",
+                                    f"{ebitda_last:,.2f}",
+                                    delta=f"{ebitda_growth:.1f}%"
+                                )
+                    else:
+                        st.info("Not enough yearly financial data to compute Key Insights.")
+                else:
+                    st.info("Financial data not in expected yearly format (missing 'Year' column).")
+                
+                # Add metric visualization
+                st.write("### Metric Evolution")
+                metric = st.selectbox(
+                    "Select metric to visualize:",
+                    ["Total Revenue", "Total Expenses", "Gross Profit", "EBITDA", "Free Cash Flow", "Common Stock Dividend Paid", "Basic EPS"]
+                )
+                
+                show_growth = st.checkbox("Show Year-over-Year Growth", value=True)
+                
+                fig = plot_financial_metrics(
+                    financial_df,
+                    metric,
+                    title=f"{ticker} - {metric} Evolution",
+                    show_growth=show_growth
+                )
+                st.plotly_chart(fig, use_container_width=True)
+        
+        except Exception as e:
+            st.error(f"Error fetching financial data: {str(e)}")
+        
 # Single Asset VaR page
 elif page == "Single Asset VaR":
     st.title("Single Asset VaR Analysis")
@@ -302,10 +439,9 @@ elif page == "Portfolio VaR":
                         # Display additional portfolio metrics
                         st.subheader("Portfolio Composition")
                         composition_df = pd.DataFrame({
-                            'Ticker': tickers,
                             'Weight': [f"{w*100:.1f}%" for w in weights],
                             'Investment Amount': [f"${w*investment_value:,.2f}" for w in weights]
-                        })
+                        }, index=tickers)
                         st.table(composition_df)
                         
                         # Display returns statistics
