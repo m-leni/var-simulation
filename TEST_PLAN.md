@@ -681,9 +681,9 @@ jobs:
     
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest pytest-cov pytest-mock pytest-asyncio responses faker
+        python -m uv pip install --upgrade pip
+        uv pip install -r requirements.txt
+        uv pip install pytest pytest-cov pytest-mock pytest-asyncio responses faker
     
     - name: Run tests with coverage
       run: |
@@ -711,7 +711,7 @@ jobs:
     
     - name: Install linting tools
       run: |
-        pip install flake8 black isort
+        uv pip install flake8 black isort
     
     - name: Run linters
       run: |
@@ -726,7 +726,7 @@ jobs:
     
     - name: Run Bandit security scan
       run: |
-        pip install bandit
+        uv pip install bandit
         bandit -r src/ -ll
 ```
 

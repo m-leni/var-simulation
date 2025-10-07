@@ -8,10 +8,10 @@ This directory contains the comprehensive test suite for the VaR Simulation appl
 
 ```bash
 # Install project dependencies
-pip install -r requirements.txt
+uv pip install -r requirements.txt
 
 # Install testing dependencies
-pip install -r requirements-dev.txt
+uv pip install -r requirements-dev.txt
 ```
 
 ### Run Tests
@@ -232,7 +232,7 @@ pytest --log-cli-level=DEBUG
 
 ```bash
 # Install pytest-xdist
-pip install pytest-xdist
+uv pip install pytest-xdist
 
 # Run tests in parallel
 pytest -n auto
@@ -262,7 +262,7 @@ pytest --durations=10
 Make sure you're in the project root directory and have installed the package:
 
 ```bash
-pip install -e .
+uv pip install -e .
 ```
 
 ### Database Errors

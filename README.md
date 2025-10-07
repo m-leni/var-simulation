@@ -9,8 +9,8 @@ This project includes a comprehensive test suite with 90+ tests covering backend
 
 ```bash
 # Install dependencies
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+uv pip install -r requirements.txt
+uv pip install -r requirements-dev.txt
 
 # Run all tests
 pytest

@@ -49,10 +49,10 @@ This document provides a comprehensive guide to the test suite for the VaR Simul
 
 ```bash
 # Install project dependencies
-pip install -r requirements.txt
+uv pip install -r requirements.txt
 
 # Install testing dependencies
-pip install -r requirements-dev.txt
+uv pip install -r requirements-dev.txt
 ```
 
 ### 2. Run All Tests
@@ -304,7 +304,7 @@ pytest --trace
 
 **Solution**: Install package in editable mode
 ```bash
-pip install -e .
+uv pip install -e .
 ```
 
 ### Database Connection Errors

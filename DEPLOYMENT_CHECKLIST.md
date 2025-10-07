@@ -91,8 +91,8 @@ This checklist should be completed before merging the test suite to the `main` b
 rm -rf .pytest_cache htmlcov .coverage
 
 # Install dependencies
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+uv pip install -r requirements.txt
+uv pip install -r requirements-dev.txt
 
 # Run all tests
 pytest -v
@@ -191,7 +191,12 @@ The test suite is ready for production when:
 
 Document any known limitations:
 
-1. **Streamlit Testing**: Basic tests only, full UI testing requires additional setup
+1. **Streamlit Testing**: Basic tests only, full UI testing requires additional setup:
+   - **Playwright/Selenium**: For E2E UI testing, install browser automation tools
+   - **Streamlit Testing Framework**: Use `streamlit.testing.v1` for component testing
+   - **Screenshot Testing**: Tools like Percy or Chromatic for visual regression
+   - **Test Server**: Running Streamlit server in test mode for integration tests
+   
 2. **External APIs**: All external calls are mocked, integration tests needed for real API testing
 3. **Performance Tests**: Not included in initial suite
 4. **Load Tests**: Not included, should be added for API endpoints

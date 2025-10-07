@@ -6,8 +6,8 @@ A quick reference guide for common testing commands.
 
 ```bash
 # One-time setup
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+uv pip install -r requirements.txt
+uv pip install -r requirements-dev.txt
 ```
 
 ## Running Tests

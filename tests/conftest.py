@@ -5,12 +5,30 @@ import pytest
 import pandas as pd
 import numpy as np
 import sqlite3 as sql
+import json
+import os
+from pathlib import Path
 from datetime import date, timedelta
 from typing import Dict
 
+# Path to test data directory
+TEST_DATA_DIR = Path(__file__).parent / 'data'
+
+def load_json_data(filename):
+    """Load test data from JSON file."""
+    filepath = TEST_DATA_DIR / filename
+    if filepath.exists():
+        with open(filepath, 'r') as f:
+            return json.load(f)
+    return None
+
 @pytest.fixture
 def sample_prices():
-    """Generate sample price data for testing."""
+    """Load real AAPL price data from JSON, fallback to generated data."""
+    data = load_json_data('aapl_sample.json')
+    if data:
+        return pd.Series(data['close'])
+    # Fallback to generated data
     return pd.Series([100, 102, 101, 103, 105, 104, 106, 108, 107, 110])
 
 @pytest.fixture
@@ -20,7 +38,23 @@ def sample_returns():
 
 @pytest.fixture
 def sample_stock_data():
-    """Generate sample stock data DataFrame."""
+    """Load real AAPL stock data from JSON, fallback to generated data."""
+    data = load_json_data('aapl_sample.json')
+    if data:
+        return pd.DataFrame({
+            'Date': pd.to_datetime(data['dates']),
+            'Ticker': [data['ticker']] * len(data['dates']),
+            'Open': data['open'],
+            'High': data['high'],
+            'Low': data['low'],
+            'Close': data['close'],
+            'Volume': data['volume'],
+            'Dividends': data['dividends'],
+            'ema50': [np.mean(data['close'])] * len(data['dates']),  # Simplified EMA
+            'ema200': [np.mean(data['close'])] * len(data['dates']),
+            'yield': [0] * len(data['dates'])
+        })
+    # Fallback to generated data
     dates = pd.date_range(start='2024-01-01', periods=10, freq='D')
     return pd.DataFrame({
         'Date': dates,
@@ -59,7 +93,20 @@ def in_memory_db():
 
 @pytest.fixture
 def portfolio_data():
-    """Generate sample portfolio data."""
+    """Load real portfolio data from JSON (GOOGL, META, MSFT), fallback to generated data."""
+    data = load_json_data('portfolio_sample.json')
+    if data:
+        return {
+            'tickers': data['tickers'],
+            'weights': np.array(data['weights']),
+            'prices': {
+                ticker: np.array(data[ticker]['close'])
+                for ticker in data['tickers']
+            },
+            'investment_value': data['investment_value'],
+            'confidence_levels': data['confidence_levels']
+        }
+    # Fallback to generated data
     return {
         'tickers': ['AAPL', 'GOOGL', 'MSFT'],
         'weights': np.array([0.4, 0.3, 0.3]),
