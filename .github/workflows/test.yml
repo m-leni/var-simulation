@@ -2,9 +2,9 @@ name: Test Suite
 
 on:
   push:
-    branches: [ main, dev/testing ]
+    branches: [ stage, dev/* ]
   pull_request:
-    branches: [ main ]
+    branches: [ stage, main ]
 
 jobs:
   test:
@@ -37,7 +37,7 @@ jobs:
     
     - name: Run tests with coverage
       run: |
-        pytest tests/ --cov=src --cov=main --cov-report=xml --cov-report=html --cov-report=term-missing -v
+        pytest tests/ --cov=src --cov=streamlit_app --cov-report=xml --cov-report=html --cov-report=term-missing -v
       continue-on-error: false
     
     - name: Upload coverage reports
@@ -69,17 +69,17 @@ jobs:
     
     - name: Run flake8
       run: |
-        flake8 src/ main.py streamlit_app.py --max-line-length=120 --extend-ignore=E203,W503 || echo "Linting issues found"
+        flake8 src/ streamlit_app.py --max-line-length=120 --extend-ignore=E203,W503 || echo "Linting issues found"
       continue-on-error: true
     
     - name: Check code formatting with black
       run: |
-        black --check src/ main.py streamlit_app.py --line-length=120 || echo "Formatting issues found"
+        black --check src/ streamlit_app.py --line-length=120 || echo "Formatting issues found"
       continue-on-error: true
     
     - name: Check import sorting with isort
       run: |
-        isort --check-only src/ main.py streamlit_app.py || echo "Import sorting issues found"
+        isort --check-only src/ streamlit_app.py || echo "Import sorting issues found"
       continue-on-error: true
 
   security:
@@ -98,7 +98,7 @@ jobs:
     
     - name: Run Bandit security scan
       run: |
-        bandit -r src/ main.py -ll -f json -o bandit-report.json || echo "Security issues found"
+        bandit -r src/ -ll -f json -o bandit-report.json || echo "Security issues found"
       continue-on-error: true
     
     - name: Check for known vulnerabilities
