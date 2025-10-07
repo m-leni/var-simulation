@@ -1,107 +1,114 @@
 # Quick Testing Reference
 
-A quick reference guide for common testing commands.
+A quick reference guide for common testing commands using UV package manager.
 
 ## Setup
 
 ```bash
-# One-time setup
-uv pip install -r requirements.txt
-uv pip install -r requirements-dev.txt
+# Install UV (one-time)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install from pyproject.toml (recommended)
+uv sync --extra dev
+
+# Or install as editable package
+uv pip install -e ".[dev]"
 ```
+
+**Note**: Use `pyproject.toml` for dependency management instead of requirements files.
 
 ## Running Tests
 
 ```bash
 # Run all tests
-pytest
+uv run pytest
 
 # Run with verbose output
-pytest -v
+uv run pytest -v
 
 # Run specific test file
-pytest tests/test_metrics.py
+uv run pytest tests/test_metrics.py
 
 # Run specific test class
-pytest tests/test_metrics.py::TestCalculateReturns
+uv run pytest tests/test_metrics.py::TestCalculateReturns
 
 # Run specific test
-pytest tests/test_metrics.py::TestCalculateReturns::test_log_returns_calculation
+uv run pytest tests/test_metrics.py::TestCalculateReturns::test_log_returns_calculation
 
 # Run tests matching pattern
-pytest -k "returns"
+uv run pytest -k "returns"
 
 # Run tests by marker
-pytest -m unit          # Only unit tests
-pytest -m "not slow"    # Skip slow tests
+uv run pytest -m unit          # Only unit tests
+uv run pytest -m "not slow"    # Skip slow tests
 ```
 
 ## Coverage
 
 ```bash
 # Basic coverage
-pytest --cov=src --cov=streamlit_app
+uv run pytest --cov=src --cov=streamlit_app
 
 # Coverage with terminal report
-pytest --cov=src --cov=streamlit_app --cov-report=term-missing
+uv run pytest --cov=src --cov=streamlit_app --cov-report=term-missing
 
 # Coverage with HTML report
-pytest --cov=src --cov=streamlit_app --cov-report=html
+uv run pytest --cov=src --cov=streamlit_app --cov-report=html
 open htmlcov/index.html
 
 # Check coverage threshold
-pytest --cov=src --cov=streamlit_app --cov-report=term --cov-fail-under=80
+uv run pytest --cov=src --cov=streamlit_app --cov-report=term --cov-fail-under=80
 ```
 
 ## Debugging
 
 ```bash
 # Show print statements
-pytest -s
+uv run pytest -s
 
 # Drop into debugger on failure
-pytest --pdb
+uv run pytest --pdb
 
 # Show full traceback
-pytest --tb=long
+uv run pytest --tb=long
 
 # Show local variables on failure
-pytest -l
+uv run pytest -l
 
 # Run last failed tests only
-pytest --lf
+uv run pytest --lf
 
 # Run failed tests first
-pytest --ff
+uv run pytest --ff
 ```
 
 ## Performance
 
 ```bash
 # Show slowest tests
-pytest --durations=10
+uv run pytest --durations=10
 
 # Run tests in parallel (requires pytest-xdist)
-pytest -n auto
+uv run pytest -n auto
 ```
 
 ## Code Quality
 
 ```bash
 # Linting
-flake8 src/ streamlit_app.py --max-line-length=120
+uv run flake8 src/ streamlit_app.py --max-line-length=120
 
 # Formatting
-black src/ streamlit_app.py --line-length=120
+uv run black src/ streamlit_app.py --line-length=120
 
 # Check formatting without making changes
-black --check src/ streamlit_app.py --line-length=120
+uv run black --check src/ streamlit_app.py --line-length=120
 
 # Sort imports
-isort src/ streamlit_app.py
+uv run isort src/ streamlit_app.py
 
 # Check import sorting
-isort --check-only src/ streamlit_app.py
+uv run isort --check-only src/ streamlit_app.py
 
 # Type checking
 mypy src/ streamlit_app.py --ignore-missing-imports
@@ -111,13 +118,13 @@ mypy src/ streamlit_app.py --ignore-missing-imports
 
 ```bash
 # Security scan
-bandit -r src/ streamlit_app.py -ll
+uv run bandit -r src/ streamlit_app.py -ll
 
 # Vulnerability check
 safety check
 
 # Detailed security report
-bandit -r src/ streamlit_app.py -ll -f json -o security-report.json
+uv run bandit -r src/ streamlit_app.py -ll -f json -o security-report.json
 ```
 
 ## Cleaning
@@ -135,11 +142,11 @@ find . -type f -name "*.pyc" -delete
 
 ```bash
 # Simulate CI locally
-pytest --cov=src --cov=streamlit_app --cov-report=xml --cov-report=term
-flake8 src/ streamlit_app.py --max-line-length=120
-black --check src/ streamlit_app.py --line-length=120
-isort --check-only src/ streamlit_app.py
-bandit -r src/ streamlit_app.py -ll
+uv run pytest --cov=src --cov=streamlit_app --cov-report=xml --cov-report=term
+uv run flake8 src/ streamlit_app.py --max-line-length=120
+uv run black --check src/ streamlit_app.py --line-length=120
+uv run isort --check-only src/ streamlit_app.py
+uv run bandit -r src/ streamlit_app.py -ll
 ```
 
 ## Test Markers
@@ -155,27 +162,27 @@ Available markers (defined in pytest.ini):
 
 ### Quick check before commit
 ```bash
-pytest -v --cov=src --cov=streamlit_app --cov-report=term
-black --check src/ streamlit_app.py
+uv run pytest -v --cov=src --cov=streamlit_app --cov-report=term
+uv run black --check src/ streamlit_app.py
 ```
 
 ### Full validation
 ```bash
-pytest --cov=src --cov=streamlit_app --cov-report=html
-flake8 src/ streamlit_app.py --max-line-length=120
-black --check src/ streamlit_app.py
-isort --check-only src/ streamlit_app.py
-bandit -r src/ streamlit_app.py -ll
+uv run pytest --cov=src --cov=streamlit_app --cov-report=html
+uv run flake8 src/ streamlit_app.py --max-line-length=120
+uv run black --check src/ streamlit_app.py
+uv run isort --check-only src/ streamlit_app.py
+uv run bandit -r src/ streamlit_app.py -ll
 ```
 
 ### Debug failing test
 ```bash
-pytest tests/test_metrics.py::TestCalculateReturns::test_log_returns -v -s --pdb
+uv run pytest tests/test_metrics.py::TestCalculateReturns::test_log_returns -v -s --pdb
 ```
 
 ### Check coverage for specific module
 ```bash
-pytest tests/test_metrics.py --cov=src/metrics --cov-report=term-missing
+uv run pytest tests/test_metrics.py --cov=src/metrics --cov-report=term-missing
 ```
 
 ## Environment Variables
@@ -195,19 +202,19 @@ export PYTEST_XDIST_AUTO_NUM_WORKERS=4
 
 ```bash
 # Fast feedback loop during development
-pytest -x -v  # Stop on first failure, verbose
+uv run pytest -x -v  # Stop on first failure, verbose
 
 # Comprehensive test with coverage
-pytest -v --cov=src --cov=streamlit_app --cov-report=html --cov-report=term-missing
+uv run pytest -v --cov=src --cov=streamlit_app --cov-report=html --cov-report=term-missing
 
 # CI simulation
-pytest --cov=src --cov=streamlit_app --cov-report=xml --cov-fail-under=80
+uv run pytest --cov=src --cov=streamlit_app --cov-report=xml --cov-fail-under=80
 
 # Debug mode
-pytest -v -s --pdb --tb=long -l
+uv run pytest -v -s --pdb --tb=long -l
 
 # Performance analysis
-pytest --durations=0 --cov=src --cov=streamlit_app
+uv run pytest --durations=0 --cov=src --cov=streamlit_app
 ```
 
 ## Exit Codes
@@ -234,16 +241,16 @@ pytest --durations=0 --cov=src --cov=streamlit_app
 
 ```bash
 # Pytest help
-pytest --help
+uv run pytest --help
 
 # Available markers
-pytest --markers
+uv run pytest --markers
 
 # Available fixtures
-pytest --fixtures
+uv run pytest --fixtures
 
 # Pytest version
-pytest --version
+uv run pytest --version
 ```
 
 ## Documentation Links

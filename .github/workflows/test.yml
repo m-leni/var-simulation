@@ -26,8 +26,7 @@ jobs:
     
     - name: Install dependencies
       run: |
-        uv pip install -r requirements.txt || echo "Requirements install had issues, continuing..."
-        uv pip install pytest pytest-cov pytest-mock pytest-asyncio responses faker
+        uv sync --extra dev
     
     - name: Run tests with coverage
       run: |
@@ -58,9 +57,9 @@ jobs:
     - name: Set up Python
       run: uv python install 3.13
     
-    - name: Install linting tools
+    - name: Install dependencies
       run: |
-        uv pip install flake8 black isort
+        uv sync --extra dev
     
     - name: Run flake8
       run: |
@@ -88,9 +87,9 @@ jobs:
     - name: Set up Python
       run: uv python install 3.13
     
-    - name: Install security tools
+    - name: Install dependencies
       run: |
-        uv pip install bandit safety
+        uv sync --extra dev
     
     - name: Run Bandit security scan
       run: |
@@ -99,6 +98,5 @@ jobs:
     
     - name: Check for known vulnerabilities
       run: |
-        uv pip install -r requirements.txt || echo "Requirements install had issues"
         uv run safety check || echo "Vulnerability check completed with issues"
       continue-on-error: true

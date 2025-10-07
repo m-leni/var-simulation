@@ -682,7 +682,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m uv pip install --upgrade pip
-        uv pip install -r requirements.txt
+        uv sync --extra dev
         uv pip install pytest pytest-cov pytest-mock pytest-asyncio responses faker
     
     - name: Run tests with coverage

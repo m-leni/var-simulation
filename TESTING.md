@@ -45,26 +45,38 @@ This document provides a comprehensive guide to the test suite for the VaR Simul
 
 ## Quick Start
 
-### 1. Install Dependencies
+### 1. Install Dependencies with UV
 
 ```bash
-# Install project dependencies
-uv pip install -r requirements.txt
+# Install UV if you haven't already
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install testing dependencies
-uv pip install -r requirements-dev.txt
+# Install all dependencies from pyproject.toml (recommended)
+uv sync
+
+# Or install with dev dependencies explicitly
+uv sync --extra dev
+
+# Alternative: Install as editable package with dev dependencies
+uv pip install -e ".[dev]"
 ```
+
+**Why UV?**
+- 10-100x faster than pip
+- Deterministic builds with `uv.lock`
+- Modern dependency resolution
+- Isolated execution with `uv run`
 
 ### 2. Run All Tests
 
 ```bash
-pytest
+uv run pytest
 ```
 
 ### 3. Run Tests with Coverage
 
 ```bash
-pytest --cov=src --cov=streamlit_app --cov-report=html
+uv run pytest --cov=src --cov=streamlit_app --cov-report=html
 ```
 
 ### 4. View Coverage Report
@@ -75,6 +87,26 @@ open htmlcov/index.html  # macOS
 xdg-open htmlcov/index.html  # Linux
 start htmlcov/index.html  # Windows
 ```
+
+## Testing Environment Configuration
+
+The testing environment is defined in `pyproject.toml`:
+
+```toml
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "pytest-asyncio>=0.23.0",
+    "flake8>=7.0.0",
+    "black>=23.12.0",
+    "isort>=5.13.0",
+    # ... other testing tools
+]
+```
+
+Install with: `uv sync --extra dev` or `uv pip install -e ".[dev]"`
 
 ## Test Organization
 
@@ -143,10 +175,44 @@ Common fixtures available in all tests (defined in `conftest.py`):
 - **sample_stock_data** - Complete stock DataFrame with all columns
 - **sample_financial_data** - Financial statement DataFrame
 - **in_memory_db** - SQLite in-memory database for testing
-- **portfolio_data** - Multi-asset portfolio data
+- **portfolio_data** - Multi-asset portfolio data (loads from `tests/data/portfolio_sample.json`)
 - **mock_stock_info** - Mock stock metadata
 - **confidence_levels** - Common confidence levels [0.90, 0.95, 0.99]
 - **investment_values** - Common investment amounts
+
+### Real Test Data
+
+Fixtures automatically load real market data from JSON files:
+- **`tests/data/aapl_sample.json`**: AAPL stock data (10 trading days)
+- **`tests/data/portfolio_sample.json`**: GOOGL, META, MSFT portfolio data
+- Falls back to generated data if JSON files are missing
+
+### Expected Outputs for Deterministic Testing
+
+Tests compare results against expected outputs in `tests/data/outputs/`:
+- **`metrics_expected.json`**: Expected outputs for all metrics functions
+
+**Tolerance Levels**:
+- **Deterministic functions** (e.g., `calculate_returns`): `1e-10` (exact within floating-point precision)
+- **Statistical functions** (e.g., `historical_var`, `parametric_var`): `0.05-0.1` (5-10% relative tolerance)
+
+Example usage:
+```python
+import json
+
+def test_with_expected_output():
+    with open('tests/data/outputs/metrics_expected.json', 'r') as f:
+        expected = json.load(f)
+    
+    result = calculate_returns(prices, method='log')
+    expected_value = expected['calculate_returns']['log_returns_sample']['expected']
+    tolerance = expected['calculate_returns']['log_returns_sample']['tolerance']
+    
+    # Compare with appropriate tolerance
+    assert np.allclose(result.dropna().tolist(), expected_value, atol=tolerance)
+```
+
+See `tests/data/outputs/README.md` for complete documentation.
 
 ## Coverage Goals and Status
 

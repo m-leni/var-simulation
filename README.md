@@ -5,19 +5,23 @@ Aplicación para estimación del Value At Risk e KPIs financieros.
 
 This project includes a comprehensive test suite with 90+ tests covering backend functions and database operations.
 
-### Quick Start
+### Quick Start with UV
 
 ```bash
-# Install dependencies
-uv pip install -r requirements.txt
-uv pip install -r requirements-dev.txt
+# Install UV package manager
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install all dependencies from pyproject.toml
+uv sync --extra dev
 
 # Run all tests
-pytest
+uv run pytest
 
 # Run with coverage
-pytest --cov=src --cov=streamlit_app --cov-report=html
+uv run pytest --cov=src --cov=streamlit_app --cov-report=html
 ```
+
+**Why UV?** 10-100x faster than pip, deterministic builds with `uv.lock`, modern dependency resolution.
 
 ### Test Coverage
 

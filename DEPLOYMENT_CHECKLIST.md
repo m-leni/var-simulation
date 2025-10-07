@@ -91,8 +91,8 @@ This checklist should be completed before merging the test suite to the `main` b
 rm -rf .pytest_cache htmlcov .coverage
 
 # Install dependencies
-uv pip install -r requirements.txt
-uv pip install -r requirements-dev.txt
+uv sync --extra dev
+
 
 # Run all tests
 pytest -v
