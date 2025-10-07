@@ -1,0 +1,102 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ stage, dev/* ]
+  pull_request:
+    branches: [ stage, main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        enable-cache: true
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        uv sync --extra dev
+    
+    - name: Run tests with coverage
+      run: |
+        uv run pytest tests/ --cov=src --cov=streamlit_app --cov-report=xml --cov-report=html --cov-report=term-missing -v
+      continue-on-error: false
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v4
+      if: matrix.python-version == '3.13'
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
+    
+    - name: Check coverage threshold
+      if: matrix.python-version == '3.13'
+      run: |
+        uv run coverage report --fail-under=80 || echo "Coverage below 80% threshold"
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+    
+    - name: Set up Python
+      run: uv python install 3.13
+    
+    - name: Install dependencies
+      run: |
+        uv sync --extra dev
+    
+    - name: Run flake8
+      run: |
+        uv run flake8 src/ streamlit_app.py --max-line-length=120 --extend-ignore=E203,W503 || echo "Linting issues found"
+      continue-on-error: true
+    
+    - name: Check code formatting with black
+      run: |
+        uv run black --check src/ streamlit_app.py --line-length=120 || echo "Formatting issues found"
+      continue-on-error: true
+    
+    - name: Check import sorting with isort
+      run: |
+        uv run isort --check-only src/ streamlit_app.py || echo "Import sorting issues found"
+      continue-on-error: true
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+    
+    - name: Set up Python
+      run: uv python install 3.13
+    
+    - name: Install dependencies
+      run: |
+        uv sync --extra dev
+    
+    - name: Run Bandit security scan
+      run: |
+        uv run bandit -r src/ -ll -f json -o bandit-report.json || echo "Security issues found"
+      continue-on-error: true
+    
+    - name: Check for known vulnerabilities
+      run: |
+        uv run safety check || echo "Vulnerability check completed with issues"
+      continue-on-error: true

@@ -1,6 +1,55 @@
 # var-simulation
 Aplicación para estimación del Value At Risk e KPIs financieros.
 
+## Testing
+
+This project includes a comprehensive test suite with 90+ tests covering backend functions and database operations.
+
+### Quick Start with UV
+
+```bash
+# Install UV package manager
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install all dependencies from pyproject.toml
+uv sync --extra dev
+
+# Run all tests
+uv run pytest
+
+# Run with coverage
+uv run pytest --cov=src --cov=streamlit_app --cov-report=html
+```
+
+**Why UV?** 10-100x faster than pip, deterministic builds with `uv.lock`, modern dependency resolution.
+
+### Test Coverage
+
+- ✅ **src/metrics.py** - VaR calculations and financial metrics (90% coverage target)
+- ✅ **src/database.py** - Database operations (85% coverage target)
+- ✅ **src/data.py** - Data fetching with mocked APIs (70% coverage target)
+- ✅ **src/datamodels.py** - Pydantic validation (90% coverage target)
+- 🔄 **streamlit_app.py** - Basic component tests (50% coverage target)
+
+**Note**: `main.py` (FastAPI backend) is deprecated and excluded from testing.
+
+### Branching Strategy
+
+- **`main`**: Production-ready code only
+- **`stage`**: Pre-production testing branch
+- **`dev/*`**: Feature development branches
+
+**Workflow**: `dev/*` → `stage` (tests run) → `main` (deploy)
+
+### CI/CD
+
+Tests run automatically via GitHub Actions on pushes to `stage` and `dev/*` branches. See [TESTING.md](TESTING.md) for detailed documentation.
+
+**Documentation:**
+- [Test Plan](TEST_PLAN.md) - Overall testing strategy
+- [Testing Guide](TESTING.md) - How to run and write tests
+- [Tests README](tests/README.md) - Detailed test examples
+
 ## Upcoming Features & Implementation Plan
 
 ### 1. Risk Profile Assessment System
