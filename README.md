@@ -1,6 +1,42 @@
 # var-simulation
 Aplicación para estimación del Value At Risk e KPIs financieros.
 
+## Testing
+
+This project includes a comprehensive test suite with 100+ tests covering backend functions, API endpoints, and database operations.
+
+### Quick Start
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=src --cov=main --cov-report=html
+```
+
+### Test Coverage
+
+- ✅ **src/metrics.py** - VaR calculations and financial metrics (90% coverage target)
+- ✅ **src/database.py** - Database operations (85% coverage target)
+- ✅ **src/data.py** - Data fetching with mocked APIs (70% coverage target)
+- ✅ **main.py** - FastAPI endpoints (85% coverage target)
+- ✅ **src/datamodels.py** - Pydantic validation (90% coverage target)
+- 🔄 **streamlit_app.py** - Basic component tests (50% coverage target)
+
+### CI/CD
+
+Tests run automatically via GitHub Actions on every push and pull request. See [TESTING.md](TESTING.md) for detailed documentation.
+
+**Documentation:**
+- [Test Plan](TEST_PLAN.md) - Overall testing strategy
+- [Testing Guide](TESTING.md) - How to run and write tests
+- [Tests README](tests/README.md) - Detailed test examples
+
 ## Upcoming Features & Implementation Plan
 
 ### 1. Risk Profile Assessment System
