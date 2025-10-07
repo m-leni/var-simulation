@@ -6,7 +6,7 @@ A comprehensive test suite has been successfully implemented for the VaR Simulat
 
 ## What Was Delivered
 
-### 📁 Test Files (6 modules, 100+ tests)
+### 📁 Test Files (6 modules, 90+ tests)
 
 ```
 tests/
@@ -15,7 +15,6 @@ tests/
 ├── test_data.py             ✅ 20+ tests (4 test classes)
 ├── test_database.py         ✅ 15+ tests (3 test classes)
 ├── test_datamodels.py       ✅ 10+ tests (3 test classes)
-├── test_api.py              ✅ 15+ tests (3 test classes)
 └── test_streamlit_app.py    ✅ 5+ tests (4 test classes)
 ```
 
@@ -96,7 +95,7 @@ tests/
 - `TestVaRRequest` (5 tests)
 - `TestPortfolioVaRRequest` (8 tests)
 
-### ✅ main.py (Target: 85%)
+### ✅ streamlit_app.py (Target: 85%)
 
 **Endpoints Tested:**
 - `POST /` - Get ticker data endpoint
@@ -128,7 +127,7 @@ tests/
 
 ### 🎯 Comprehensive Test Coverage
 
-- **100+ tests** across all critical modules
+- **90+ tests** across all critical modules
 - **Unit tests** for isolated function testing
 - **Integration tests** for database operations
 - **API tests** for endpoint validation
@@ -200,15 +199,15 @@ pip install -r requirements-dev.txt
 pytest
 
 # Run with coverage
-pytest --cov=src --cov=main --cov-report=html
+pytest --cov=src --cov=streamlit_app --cov-report=html
 
 # Run specific module
 pytest tests/test_metrics.py -v
 
 # Run CI simulation
-pytest --cov=src --cov=main --cov-report=xml --cov-fail-under=80
-flake8 src/ main.py --max-line-length=120
-black --check src/ main.py
+pytest --cov=src --cov=streamlit_app --cov-report=xml --cov-fail-under=80
+flake8 src/ streamlit_app.py --max-line-length=120
+black --check src/ streamlit_app.py
 ```
 
 ## CI/CD Pipeline
@@ -246,8 +245,8 @@ The GitHub Actions workflow includes:
 
 ## Achievements
 
-✅ **100+ tests** covering critical functionality
-✅ **6 test modules** organized by component
+✅ **90+ tests** covering critical functionality
+✅ **5 test modules** organized by component
 ✅ **10 shared fixtures** for common test data
 ✅ **CI/CD pipeline** fully configured
 ✅ **5 documentation files** (30,000+ words)
@@ -297,7 +296,7 @@ The GitHub Actions workflow includes:
 
 ## Success Metrics
 
-- ✅ **Test Count**: 100+ tests implemented
+- ✅ **Test Count**: 90+ tests implemented
 - ✅ **Coverage Goal**: 80% overall target set
 - ✅ **CI/CD**: Automated pipeline configured
 - ✅ **Documentation**: Comprehensive guides created
@@ -314,7 +313,7 @@ The test suite provides a solid foundation for maintaining code quality, catchin
 
 ---
 
-**Total Effort**: Comprehensive test suite with 100+ tests
+**Total Effort**: Comprehensive test suite with 90+ tests
 **Total Documentation**: 30,000+ words across 5 documents
 **Total Files**: 18 new/modified files
 **Status**: ✅ Production Ready

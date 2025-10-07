@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document provides a comprehensive guide to the test suite for the VaR Simulation application. The test suite includes unit tests for backend functions, API endpoint tests, database tests, and basic tests for the Streamlit frontend.
+This document provides a comprehensive guide to the test suite for the VaR Simulation application. The test suite includes unit tests for backend functions, database tests, and basic tests for the Streamlit frontend.
 
 ## Test Coverage Summary
 
@@ -35,16 +35,13 @@ This document provides a comprehensive guide to the test suite for the VaR Simul
    - `VaRRequest` - VaR calculation parameters
    - `PortfolioVaRRequest` - Portfolio VaR parameters
 
-5. **main.py** - FastAPI endpoints
-   - `POST /` - Ticker data endpoint
-   - `POST /var-simulation` - VaR calculation endpoint  
-   - `POST /var-simulation-portfolio` - Portfolio VaR endpoint
-
-6. **streamlit_app.py** - Frontend components (basic tests)
+5. **streamlit_app.py** - Frontend components (basic tests)
    - Import validation
    - Data caching logic
    - Portfolio weight validation
    - Date range handling
+
+**Note**: `main.py` (FastAPI backend) is deprecated and excluded from testing.
 
 ## Quick Start
 
@@ -67,7 +64,7 @@ pytest
 ### 3. Run Tests with Coverage
 
 ```bash
-pytest --cov=src --cov=main --cov-report=html
+pytest --cov=src --cov=streamlit_app --cov-report=html
 ```
 
 ### 4. View Coverage Report
@@ -89,7 +86,6 @@ tests/
 ├── test_data.py               # Data module tests (20+ tests)
 ├── test_database.py           # Database tests (15+ tests)
 ├── test_datamodels.py         # Pydantic model tests (10+ tests)
-├── test_api.py                # FastAPI endpoint tests (15+ tests)
 ├── test_streamlit_app.py      # Streamlit app tests (5+ tests)
 └── README.md                  # Detailed testing guide
 ```
@@ -103,7 +99,6 @@ tests/
 pytest tests/test_metrics.py -v
 
 # Test only API endpoints
-pytest tests/test_api.py -v
 
 # Test only database operations
 pytest tests/test_database.py -v
@@ -159,11 +154,12 @@ Common fixtures available in all tests (defined in `conftest.py`):
 |--------|----------------|---------|
 | src/metrics.py | 90% | ✅ Implemented |
 | src/database.py | 85% | ✅ Implemented |
-| main.py | 85% | ✅ Implemented |
 | src/data.py | 70% | ✅ Implemented |
 | src/datamodels.py | 90% | ✅ Implemented |
 | streamlit_app.py | 50% | 🔄 Basic tests |
 | **Overall** | **80%** | 🎯 Target |
+
+**Note**: `main.py` (FastAPI backend) is deprecated and excluded from coverage tracking.
 
 ## Continuous Integration
 
@@ -203,20 +199,20 @@ See `.github/workflows/test.yml` for the complete CI/CD configuration.
 
 ```bash
 # Check code style
-flake8 src/ main.py streamlit_app.py --max-line-length=120
+flake8 src/ streamlit_app.py --max-line-length=120
 
 # Auto-format code
-black src/ main.py streamlit_app.py --line-length=120
+black src/ streamlit_app.py --line-length=120
 
 # Sort imports
-isort src/ main.py streamlit_app.py
+isort src/ streamlit_app.py
 ```
 
 ### Security
 
 ```bash
 # Security scan
-bandit -r src/ main.py -ll
+bandit -r src/ -ll
 
 # Vulnerability check
 safety check
@@ -230,7 +226,6 @@ Add tests to the appropriate file based on what you're testing:
 - Calculations → `test_metrics.py`
 - Data fetching → `test_data.py`
 - Database → `test_database.py`
-- API endpoints → `test_api.py`
 
 ### 2. Follow Naming Conventions
 
@@ -383,7 +378,7 @@ The test suite provides comprehensive coverage of:
 - ✅ FastAPI endpoint testing
 - 🔄 Basic Streamlit component testing
 
-**Total Tests**: 100+ tests across 6 test files
+**Total Tests**: 90+ tests across 6 test files
 
 **Status**: ✅ Ready for integration into CI/CD pipeline
 

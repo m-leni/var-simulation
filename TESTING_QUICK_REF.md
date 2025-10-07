@@ -40,17 +40,17 @@ pytest -m "not slow"    # Skip slow tests
 
 ```bash
 # Basic coverage
-pytest --cov=src --cov=main
+pytest --cov=src --cov=streamlit_app
 
 # Coverage with terminal report
-pytest --cov=src --cov=main --cov-report=term-missing
+pytest --cov=src --cov=streamlit_app --cov-report=term-missing
 
 # Coverage with HTML report
-pytest --cov=src --cov=main --cov-report=html
+pytest --cov=src --cov=streamlit_app --cov-report=html
 open htmlcov/index.html
 
 # Check coverage threshold
-pytest --cov=src --cov=main --cov-report=term --cov-fail-under=80
+pytest --cov=src --cov=streamlit_app --cov-report=term --cov-fail-under=80
 ```
 
 ## Debugging
@@ -89,35 +89,35 @@ pytest -n auto
 
 ```bash
 # Linting
-flake8 src/ main.py --max-line-length=120
+flake8 src/ streamlit_app.py --max-line-length=120
 
 # Formatting
-black src/ main.py --line-length=120
+black src/ streamlit_app.py --line-length=120
 
 # Check formatting without making changes
-black --check src/ main.py --line-length=120
+black --check src/ streamlit_app.py --line-length=120
 
 # Sort imports
-isort src/ main.py
+isort src/ streamlit_app.py
 
 # Check import sorting
-isort --check-only src/ main.py
+isort --check-only src/ streamlit_app.py
 
 # Type checking
-mypy src/ main.py --ignore-missing-imports
+mypy src/ streamlit_app.py --ignore-missing-imports
 ```
 
 ## Security
 
 ```bash
 # Security scan
-bandit -r src/ main.py -ll
+bandit -r src/ streamlit_app.py -ll
 
 # Vulnerability check
 safety check
 
 # Detailed security report
-bandit -r src/ main.py -ll -f json -o security-report.json
+bandit -r src/ streamlit_app.py -ll -f json -o security-report.json
 ```
 
 ## Cleaning
@@ -135,11 +135,11 @@ find . -type f -name "*.pyc" -delete
 
 ```bash
 # Simulate CI locally
-pytest --cov=src --cov=main --cov-report=xml --cov-report=term
-flake8 src/ main.py --max-line-length=120
-black --check src/ main.py --line-length=120
-isort --check-only src/ main.py
-bandit -r src/ main.py -ll
+pytest --cov=src --cov=streamlit_app --cov-report=xml --cov-report=term
+flake8 src/ streamlit_app.py --max-line-length=120
+black --check src/ streamlit_app.py --line-length=120
+isort --check-only src/ streamlit_app.py
+bandit -r src/ streamlit_app.py -ll
 ```
 
 ## Test Markers
@@ -155,17 +155,17 @@ Available markers (defined in pytest.ini):
 
 ### Quick check before commit
 ```bash
-pytest -v --cov=src --cov=main --cov-report=term
-black --check src/ main.py
+pytest -v --cov=src --cov=streamlit_app --cov-report=term
+black --check src/ streamlit_app.py
 ```
 
 ### Full validation
 ```bash
-pytest --cov=src --cov=main --cov-report=html
-flake8 src/ main.py --max-line-length=120
-black --check src/ main.py
-isort --check-only src/ main.py
-bandit -r src/ main.py -ll
+pytest --cov=src --cov=streamlit_app --cov-report=html
+flake8 src/ streamlit_app.py --max-line-length=120
+black --check src/ streamlit_app.py
+isort --check-only src/ streamlit_app.py
+bandit -r src/ streamlit_app.py -ll
 ```
 
 ### Debug failing test
@@ -198,16 +198,16 @@ export PYTEST_XDIST_AUTO_NUM_WORKERS=4
 pytest -x -v  # Stop on first failure, verbose
 
 # Comprehensive test with coverage
-pytest -v --cov=src --cov=main --cov-report=html --cov-report=term-missing
+pytest -v --cov=src --cov=streamlit_app --cov-report=html --cov-report=term-missing
 
 # CI simulation
-pytest --cov=src --cov=main --cov-report=xml --cov-fail-under=80
+pytest --cov=src --cov=streamlit_app --cov-report=xml --cov-fail-under=80
 
 # Debug mode
 pytest -v -s --pdb --tb=long -l
 
 # Performance analysis
-pytest --durations=0 --cov=src --cov=main
+pytest --durations=0 --cov=src --cov=streamlit_app
 ```
 
 ## Exit Codes

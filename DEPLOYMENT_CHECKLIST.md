@@ -67,10 +67,8 @@ This checklist should be completed before merging the test suite to the `main` b
   - [x] Table schema validation
 
 #### API Endpoints
-- [x] main.py
+- [x] streamlit_app.py
   - [x] POST / (get_ticker)
-  - [x] POST /var-simulation
-  - [x] POST /var-simulation-portfolio
 
 #### Models
 - [x] src/datamodels.py
@@ -103,12 +101,12 @@ pytest -v
 pytest --cov=src --cov=main --cov-report=term-missing
 
 # Run linters
-flake8 src/ main.py --max-line-length=120
-black --check src/ main.py --line-length=120
-isort --check-only src/ main.py
+flake8 src/ streamlit_app.py --max-line-length=120
+black --check src/ streamlit_app.py --line-length=120
+isort --check-only src/ streamlit_app.py
 
 # Security scan
-bandit -r src/ main.py -ll
+bandit -r src/ streamlit_app.py -ll
 ```
 
 ### 2. Verify GitHub Actions

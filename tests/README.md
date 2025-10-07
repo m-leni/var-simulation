@@ -41,7 +41,6 @@ tests/
 ├── test_data.py             # Tests for src/data.py
 ├── test_database.py         # Tests for src/database.py
 ├── test_datamodels.py       # Tests for src/datamodels.py
-└── test_api.py              # Tests for FastAPI endpoints
 ```
 
 ## Test Categories
@@ -51,7 +50,6 @@ Tests are marked with categories for selective execution:
 - `@pytest.mark.unit` - Fast unit tests
 - `@pytest.mark.integration` - Integration tests
 - `@pytest.mark.slow` - Tests that take longer to run
-- `@pytest.mark.api` - API endpoint tests
 
 ### Running Specific Categories
 

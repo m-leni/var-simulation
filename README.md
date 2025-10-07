@@ -3,7 +3,7 @@ Aplicación para estimación del Value At Risk e KPIs financieros.
 
 ## Testing
 
-This project includes a comprehensive test suite with 100+ tests covering backend functions, API endpoints, and database operations.
+This project includes a comprehensive test suite with 90+ tests covering backend functions and database operations.
 
 ### Quick Start
 
@@ -16,7 +16,7 @@ pip install -r requirements-dev.txt
 pytest
 
 # Run with coverage
-pytest --cov=src --cov=main --cov-report=html
+pytest --cov=src --cov=streamlit_app --cov-report=html
 ```
 
 ### Test Coverage
@@ -24,13 +24,22 @@ pytest --cov=src --cov=main --cov-report=html
 - ✅ **src/metrics.py** - VaR calculations and financial metrics (90% coverage target)
 - ✅ **src/database.py** - Database operations (85% coverage target)
 - ✅ **src/data.py** - Data fetching with mocked APIs (70% coverage target)
-- ✅ **main.py** - FastAPI endpoints (85% coverage target)
 - ✅ **src/datamodels.py** - Pydantic validation (90% coverage target)
 - 🔄 **streamlit_app.py** - Basic component tests (50% coverage target)
 
+**Note**: `main.py` (FastAPI backend) is deprecated and excluded from testing.
+
+### Branching Strategy
+
+- **`main`**: Production-ready code only
+- **`stage`**: Pre-production testing branch
+- **`dev/*`**: Feature development branches
+
+**Workflow**: `dev/*` → `stage` (tests run) → `main` (deploy)
+
 ### CI/CD
 
-Tests run automatically via GitHub Actions on every push and pull request. See [TESTING.md](TESTING.md) for detailed documentation.
+Tests run automatically via GitHub Actions on pushes to `stage` and `dev/*` branches. See [TESTING.md](TESTING.md) for detailed documentation.
 
 **Documentation:**
 - [Test Plan](TEST_PLAN.md) - Overall testing strategy
