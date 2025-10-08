@@ -1,6 +1,24 @@
 # var-simulation
 Aplicación para estimación del Value At Risk e KPIs financieros.
 
+## Features
+
+### Core Functionality
+- **Value at Risk (VaR) Calculations**: Historical and parametric VaR methods
+- **Portfolio Analysis**: Multi-asset portfolio risk assessment
+- **Financial Metrics**: Returns calculation, moving averages, P/E ratios
+
+### Analyst Forecast Integration (New!)
+The library now includes comprehensive analyst forecast data from yfinance:
+
+- **Analyst Price Targets**: Get price target forecasts (low, high, mean, median)
+- **Earnings Forecasts**: Fetch analyst EPS estimates for current and future periods
+- **Revenue Forecasts**: Access analyst revenue projections
+- **Growth Estimates**: Retrieve analyst growth rate expectations
+- **Forward P/E Ratio**: Calculate forward-looking P/E ratios using analyst estimates
+
+See [examples/README.md](examples/README.md) for usage examples.
+
 ## Development Guide
 
 ### Testing
@@ -169,18 +187,21 @@ pytest --cov=src --cov-report=html
 
 ### 2. Enhanced Stock Analysis & Valuation
 **Purpose**: Add analyst estimates and advanced P/E analysis
-- [ ] Integrate analyst estimates data
-  - Add API endpoints for forecast data
-  - Implement revenue forecast fetching
-  - Add EPS estimates collection
-- [ ] Create P/E analysis module
-  - Calculate historical P/E trends
-  - Implement forward P/E projections
-  - Add peer comparison functionality
+- [x] Integrate analyst estimates data
+  - ✓ Add yfinance API functions for forecast data
+  - ✓ Implement earnings (EPS) forecast fetching
+  - ✓ Add revenue estimates collection
+  - ✓ Add growth estimates fetching
+  - ✓ Add analyst price targets
+- [x] Create P/E analysis module
+  - ✓ Calculate forward P/E using analyst estimates
+  - ✓ Implement forward P/E ratio function
+  - ✓ Add comprehensive forward P/E data extraction
 - [ ] Develop price estimation model
   - Create price projection algorithms
   - Implement multiple scenario analysis
   - Add confidence intervals for estimates
+- [ ] Add peer comparison functionality
 
 ### 3. Returns Database & Precalculation System
 **Purpose**: Build efficient returns calculation and storage system
