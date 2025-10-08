@@ -2,6 +2,31 @@
 
 This directory contains the comprehensive test suite for the VaR Simulation application.
 
+## Overview
+
+The test suite includes:
+- 90+ unit and integration tests
+- Code coverage reporting
+- Shared fixtures and utilities
+- CI/CD integration via GitHub Actions
+
+### Test Categories
+
+1. **Unit Tests** (`@pytest.mark.unit`)
+   - Fast, isolated function testing
+   - No external dependencies
+   - Examples: calculations, validations
+
+2. **Integration Tests** (`@pytest.mark.integration`)
+   - Database operations
+   - API interactions (mocked)
+   - Cross-module functionality
+
+3. **Slow Tests** (`@pytest.mark.slow`)
+   - Complex calculations
+   - Large dataset operations
+   - Heavy I/O operations
+
 ## Quick Start
 
 ### Install Dependencies
@@ -33,15 +58,91 @@ pytest tests/test_metrics.py::TestCalculateReturns::test_log_returns_with_series
 
 ## Test Structure
 
+### Directory Layout
 ```
 tests/
 ├── __init__.py
-├── conftest.py              # Shared fixtures and configuration
-├── test_metrics.py          # Tests for src/metrics.py
-├── test_data.py             # Tests for src/data.py
-├── test_database.py         # Tests for src/database.py
-├── test_datamodels.py       # Tests for src/datamodels.py
+├── conftest.py              # Shared fixtures
+├── test_metrics.py          # Core financial calculations
+├── test_data.py            # Data fetching and processing
+├── test_database.py        # SQL operations
+├── test_datamodels.py      # Data validation
+└── test_streamlit_app.py   # UI components
 ```
+
+### Module Coverage
+
+#### `test_metrics.py` (40+ tests)
+- Calculate returns (log/simple)
+- Historical VaR
+- Parametric VaR
+- Portfolio calculations
+- Moving averages
+
+#### `test_data.py` (20+ tests)
+- Stock data fetching
+- Financial data processing
+- Date handling
+- Market index components
+
+#### `test_database.py` (15+ tests)
+- Schema creation
+- Data insertion
+- Query operations
+- Transaction handling
+
+#### `test_datamodels.py` (10+ tests)
+- Input validation
+- Type conversion
+- Edge cases
+- Error handling
+
+### Test Data & Expected Outputs
+
+#### Sample Data Files (`tests/data/`)
+
+1. **`aapl_sample.json`**
+   - 10 days of real AAPL trading data
+   - Used in `sample_stock_data` and `sample_prices` fixtures
+   - Contains: dates, OHLCV data, dividends
+
+2. **`portfolio_sample.json`**
+   - GOOGL, META, MSFT portfolio with equal weights
+   - Used in `portfolio_data` fixture
+   - Contains: tickers, weights, dates, price data
+
+#### Expected Outputs (`tests/data/outputs/`)
+
+1. **Deterministic Functions** (tolerance: 1e-10)
+   - `calculate_returns` (log/simple)
+   - `weighted_moving_average`
+   - `exponential_weighted_moving_average`
+   - `calculate_cumulative_yield`
+
+2. **Statistical Functions** (tolerance: 0.05-0.1)
+   - `historical_var` (percentile-based)
+   - `parametric_var` (normal distribution)
+   - `portfolio_var` (correlation matrix)
+
+Example test with expected output:
+```python
+def test_historical_var():
+    result = historical_var(sample_returns, 0.95, 10000)
+    expected_value = expected['historical_var']['test_cases']['confidence_95_investment_10000']['expected_var']
+    tolerance = expected['historical_var']['test_cases']['confidence_95_investment_10000']['tolerance']
+    
+    assert abs(result - expected_value) < tolerance
+```
+
+#### Updating Test Data
+1. To update sample data:
+   - Edit JSON files directly
+   - Or fetch new market data in same format
+2. To update expected outputs:
+   - Review changes for correctness
+   - Generate new outputs with test inputs
+   - Update JSON with new values
+   - Document changes in commitssss
 
 ## Test Categories
 
@@ -64,20 +165,37 @@ pytest -m "not slow"
 pytest -m api
 ```
 
-## Coverage
+## Testing Tools & Commands
 
-Generate a detailed coverage report:
-
+### Coverage Reports
 ```bash
-# Terminal report
-pytest --cov=src --cov=main --cov-report=term-missing
+# Basic coverage
+pytest --cov=src --cov=streamlit_app
 
-# HTML report (opens in browser)
-pytest --cov=src --cov=main --cov-report=html
-open htmlcov/index.html
+# Terminal report with missing lines
+pytest --cov=src --cov-report=term-missing
 
-# XML report (for CI/CD)
-pytest --cov=src --cov=main --cov-report=xml
+# HTML report
+pytest --cov=src --cov-report=html
+open htmlcov/index.html  # View report
+
+# CI/CD XML report
+pytest --cov=src --cov-report=xml
+```
+
+### Debugging Tools
+```bash
+pytest -s                     # Show print output
+pytest --pdb                 # Debug on failure
+pytest -l                    # Show local vars
+pytest --lf                  # Last failed tests
+pytest -v                    # Verbose output
+```
+
+### Performance Tools
+```bash
+pytest --durations=10        # Show slow tests
+pytest -n auto              # Parallel testing
 ```
 
 ### Coverage Goals

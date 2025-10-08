@@ -1,54 +1,154 @@
 # var-simulation
 Aplicación para estimación del Value At Risk e KPIs financieros.
 
-## Testing
+## Development Guide
 
-This project includes a comprehensive test suite with 90+ tests covering backend functions and database operations.
+### Testing
 
-### Quick Start with UV
+This project includes a comprehensive test suite with 90+ tests covering all critical components.
+
+#### Quick Start
 
 ```bash
-# Install UV package manager
+# Install UV package manager (10-100x faster than pip)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install all dependencies from pyproject.toml
+# Install dependencies
+uv sync --extra dev
+
+# Run tests
+uv run pytest                                         # All tests
+uv run pytest -k "returns"                           # Pattern matching
+uv run pytest tests/test_metrics.py                  # Specific file
+uv run pytest --cov=src --cov-report=html           # With coverage
+```
+
+#### Test Coverage Summary
+
+| Module | Tests | Coverage | Description |
+|--------|--------|-----------|-------------|
+| metrics.py | 40+ | 90% | VaR calculations, financial metrics |
+| data.py | 20+ | 70% | Data fetching, API integrations |
+| database.py | 15+ | 85% | SQL operations, data persistence |
+| datamodels.py | 10+ | 90% | Data validation models |
+| streamlit_app.py | 5+ | 50% | UI components |
+
+#### Project Structure
+
+```
+var-simulation/
+├── src/                   # Core modules
+├── tests/                 # Test suite
+│   ├── conftest.py       # Shared fixtures
+│   ├── test_*.py         # Test modules
+│   ├── README.md         # Detailed examples
+│   └── data/             # Test data files
+│       ├── aapl_sample.json     # Real AAPL trading data
+│       ├── portfolio_sample.json # Multi-stock portfolio
+│       └── outputs/             # Expected test outputs
+├── streamlit_app.py      # Frontend
+└── pytest.ini           # Test configuration
+```
+
+#### Test Data Overview
+
+The project includes carefully curated test data:
+
+1. **Sample Market Data** (`tests/data/`)
+   - Real AAPL historical prices and volumes
+   - Multi-stock portfolio (GOOGL, META, MSFT)
+   - Used by test fixtures in `conftest.py`
+
+2. **Expected Outputs** (`tests/data/outputs/`)
+   - Verified calculation results
+   - Strict tolerances for deterministic functions (1e-10)
+   - Flexible tolerances for statistical functions (5-10%)
+
+See [tests/README.md](tests/README.md) for detailed testing documentation.
+
+#### Pre-Merge Checklist
+
+Before merging to the `main` branch, ensure:
+
+##### Code Quality
+- [ ] Test suite maintained with 100+ tests
+- [ ] Test coverage for all critical modules
+- [ ] Fixtures created for common test data
+- [ ] External APIs properly mocked
+- [ ] All tests pass locally
+- [ ] Coverage threshold met (80% overall)
+- [ ] No test warnings or errors
+
+##### Infrastructure
+- [ ] Test directory structure maintained
+- [ ] conftest.py with shared fixtures
+- [ ] Test markers configured (unit, integration, api, slow)
+- [ ] .gitignore updated for test artifacts
+- [ ] Pre-commit hooks configured (optional)
+
+##### CI/CD
+- [ ] GitHub Actions workflow passing
+- [ ] Coverage reporting configured
+- [ ] Security scanning enabled
+
+#### Test Coverage Details
+
+##### Backend Functions (src/metrics.py)
+- Calculate returns (log and simple)
+- Historical VaR
+- Parametric VaR
+- Portfolio VaR
+- Portfolio returns calculations
+- Moving averages (weighted and exponential)
+- Cumulative yield calculations
+
+##### Data Layer (src/data.py)
+- Stock data fetching (with mocks)
+- Stock info retrieval
+- Date parameter handling
+- Data transformation
+
+##### Database (src/database.py)
+- Database creation and schema
+- Stock data operations
+- Financial data operations
+- Schema validation
+
+##### Models (src/datamodels.py)
+- Request validation (Ticker, VaR, Portfolio)
+- Data model integrity
+
+##### Frontend (streamlit_app.py)
+- Basic import validation
+- Data validation logic
+- Component integration
+
+#### Development Workflow
+
+1. Create feature branch: `git checkout -b dev/feature-name stage`
+2. Write tests first: `tests/test_*.py`
+3. Implement feature in `src/` or `streamlit_app.py`
+4. Run tests: `uv run pytest`
+5. Create PR: `dev/feature-name` → `stage`
+6. After tests pass: `stage` → `main`
+
+For detailed testing documentation, see [tests/README.md](tests/README.md)
+
+#### Testing Steps Before Merge
+
+```bash
+# Clean environment
+rm -rf .pytest_cache htmlcov .coverage
+
+# Install dependencies
 uv sync --extra dev
 
 # Run all tests
-uv run pytest
+pytest -v
 
-# Run with coverage
-uv run pytest --cov=src --cov=streamlit_app --cov-report=html
+# Check coverage
+pytest --cov=src --cov-report=html
 ```
-
-**Why UV?** 10-100x faster than pip, deterministic builds with `uv.lock`, modern dependency resolution.
-
-### Test Coverage
-
-- ✅ **src/metrics.py** - VaR calculations and financial metrics (90% coverage target)
-- ✅ **src/database.py** - Database operations (85% coverage target)
-- ✅ **src/data.py** - Data fetching with mocked APIs (70% coverage target)
-- ✅ **src/datamodels.py** - Pydantic validation (90% coverage target)
-- 🔄 **streamlit_app.py** - Basic component tests (50% coverage target)
-
-**Note**: `main.py` (FastAPI backend) is deprecated and excluded from testing.
-
-### Branching Strategy
-
-- **`main`**: Production-ready code only
-- **`stage`**: Pre-production testing branch
-- **`dev/*`**: Feature development branches
-
-**Workflow**: `dev/*` → `stage` (tests run) → `main` (deploy)
-
-### CI/CD
-
-Tests run automatically via GitHub Actions on pushes to `stage` and `dev/*` branches. See [TESTING.md](TESTING.md) for detailed documentation.
-
-**Documentation:**
-- [Test Plan](TEST_PLAN.md) - Overall testing strategy
-- [Testing Guide](TESTING.md) - How to run and write tests
-- [Tests README](tests/README.md) - Detailed test examples
 
 ## Upcoming Features & Implementation Plan
 
