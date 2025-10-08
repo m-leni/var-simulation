@@ -6,7 +6,15 @@ from unittest.mock import patch, MagicMock
 import pandas as pd
 import numpy as np
 from datetime import date, timedelta
-from src.data import fetch_stock_data, get_stock_info
+from src.data import (
+    fetch_stock_data, 
+    get_stock_info,
+    fetch_analyst_price_targets,
+    fetch_analyst_earnings_forecast,
+    fetch_analyst_revenue_forecast,
+    fetch_analyst_growth_estimates,
+    get_forward_pe_data
+)
 
 
 class TestFetchStockData:
@@ -306,3 +314,177 @@ class TestDataTransformation:
         
         assert 'Ticker' in df.columns
         assert all(df['Ticker'] == 'GOOGL')
+
+
+class TestAnalystForecasts:
+    """Tests for analyst forecast functions from yfinance."""
+    
+    @patch('src.data.yf.Ticker')
+    def test_fetch_analyst_price_targets(self, mock_ticker_class):
+        """Test fetching analyst price targets."""
+        mock_ticker = MagicMock()
+        mock_ticker.analyst_price_targets = {
+            'current': 150.0,
+            'low': 120.0,
+            'high': 180.0,
+            'mean': 155.0,
+            'median': 152.0
+        }
+        mock_ticker_class.return_value = mock_ticker
+        
+        targets = fetch_analyst_price_targets('AAPL')
+        
+        assert isinstance(targets, dict)
+        assert targets['current'] == 150.0
+        assert targets['mean'] == 155.0
+        assert targets['low'] == 120.0
+        assert targets['high'] == 180.0
+    
+    @patch('src.data.yf.Ticker')
+    def test_fetch_analyst_price_targets_error(self, mock_ticker_class):
+        """Test error handling when fetching price targets fails."""
+        mock_ticker = MagicMock()
+        mock_ticker.analyst_price_targets.side_effect = Exception("API error")
+        mock_ticker_class.return_value = mock_ticker
+        
+        with pytest.raises(ValueError, match="Error fetching analyst price targets"):
+            fetch_analyst_price_targets('INVALID')
+    
+    @patch('src.data.yf.Ticker')
+    def test_fetch_analyst_earnings_forecast(self, mock_ticker_class):
+        """Test fetching analyst earnings estimates."""
+        mock_ticker = MagicMock()
+        mock_earnings = pd.DataFrame({
+            'numberOfAnalysts': [15, 15, 20, 18],
+            'avg': [1.2, 1.3, 5.0, 5.5],
+            'low': [1.0, 1.1, 4.5, 5.0],
+            'high': [1.4, 1.5, 5.5, 6.0],
+            'yearAgoEps': [1.0, 1.0, 4.2, 4.5],
+            'growth': [0.2, 0.3, 0.19, 0.22]
+        }, index=['Current Quarter', 'Next Quarter', 'Current Year', 'Next Year'])
+        
+        mock_ticker.earnings_estimate = mock_earnings
+        mock_ticker_class.return_value = mock_ticker
+        
+        earnings = fetch_analyst_earnings_forecast('AAPL')
+        
+        assert isinstance(earnings, pd.DataFrame)
+        assert len(earnings) == 4
+        assert 'avg' in earnings.columns
+        assert earnings.loc['Next Year', 'avg'] == 5.5
+    
+    @patch('src.data.yf.Ticker')
+    def test_fetch_analyst_earnings_forecast_empty(self, mock_ticker_class):
+        """Test error when no earnings estimates available."""
+        mock_ticker = MagicMock()
+        mock_ticker.earnings_estimate = None
+        mock_ticker_class.return_value = mock_ticker
+        
+        with pytest.raises(ValueError, match="No earnings estimate data available"):
+            fetch_analyst_earnings_forecast('AAPL')
+    
+    @patch('src.data.yf.Ticker')
+    def test_fetch_analyst_revenue_forecast(self, mock_ticker_class):
+        """Test fetching analyst revenue estimates."""
+        mock_ticker = MagicMock()
+        mock_revenue = pd.DataFrame({
+            'numberOfAnalysts': [10, 10, 12, 12],
+            'avg': [80e9, 85e9, 320e9, 350e9],
+            'low': [75e9, 80e9, 310e9, 340e9],
+            'high': [85e9, 90e9, 330e9, 360e9],
+            'yearAgoRevenue': [75e9, 78e9, 300e9, 320e9],
+            'growth': [0.067, 0.090, 0.067, 0.094]
+        }, index=['Current Quarter', 'Next Quarter', 'Current Year', 'Next Year'])
+        
+        mock_ticker.revenue_estimate = mock_revenue
+        mock_ticker_class.return_value = mock_ticker
+        
+        revenue = fetch_analyst_revenue_forecast('AAPL')
+        
+        assert isinstance(revenue, pd.DataFrame)
+        assert len(revenue) == 4
+        assert 'avg' in revenue.columns
+        assert revenue.loc['Next Year', 'avg'] == 350e9
+    
+    @patch('src.data.yf.Ticker')
+    def test_fetch_analyst_growth_estimates(self, mock_ticker_class):
+        """Test fetching analyst growth estimates."""
+        mock_ticker = MagicMock()
+        mock_growth = pd.DataFrame({
+            'AAPL': [0.05, 0.06, 0.08, 0.10, 0.12, 0.15]
+        }, index=[
+            'Current Qtr.',
+            'Next Qtr.',
+            'Current Year',
+            'Next Year',
+            'Next 5 Years (per annum)',
+            'Past 5 Years (per annum)'
+        ])
+        
+        mock_ticker.growth_estimates = mock_growth
+        mock_ticker_class.return_value = mock_ticker
+        
+        growth = fetch_analyst_growth_estimates('AAPL')
+        
+        assert isinstance(growth, pd.DataFrame)
+        assert len(growth) >= 4
+        assert 'AAPL' in growth.columns
+    
+    @patch('src.data.yf.Ticker')
+    def test_get_forward_pe_data(self, mock_ticker_class):
+        """Test getting forward P/E data."""
+        mock_ticker = MagicMock()
+        
+        # Mock info dict
+        mock_ticker.info = {
+            'currentPrice': 150.0,
+            'trailingPE': 25.0,
+            'targetMeanPrice': 160.0
+        }
+        
+        # Mock earnings estimate
+        mock_earnings = pd.DataFrame({
+            'numberOfAnalysts': [20],
+            'avg': [6.0],
+            'low': [5.5],
+            'high': [6.5],
+            'yearAgoEps': [5.0],
+            'growth': [0.2]
+        }, index=['Next Year'])
+        
+        mock_ticker.earnings_estimate = mock_earnings
+        mock_ticker_class.return_value = mock_ticker
+        
+        data = get_forward_pe_data('AAPL')
+        
+        assert isinstance(data, dict)
+        assert data['current_price'] == 150.0
+        assert data['forward_eps'] == 6.0
+        assert data['forward_pe'] == 25.0  # 150 / 6
+        assert data['trailing_pe'] == 25.0
+        assert data['num_analysts'] == 20
+    
+    @patch('src.data.yf.Ticker')
+    def test_get_forward_pe_data_fallback_to_info(self, mock_ticker_class):
+        """Test forward P/E data fallback to info dict when estimates unavailable."""
+        mock_ticker = MagicMock()
+        
+        # Mock info dict with forward data
+        mock_ticker.info = {
+            'currentPrice': 150.0,
+            'forwardEps': 6.5,
+            'forwardPE': 23.08,
+            'trailingPE': 25.0,
+            'targetMeanPrice': 160.0
+        }
+        
+        # No earnings estimate available
+        mock_ticker.earnings_estimate = None
+        mock_ticker_class.return_value = mock_ticker
+        
+        data = get_forward_pe_data('AAPL')
+        
+        assert isinstance(data, dict)
+        assert data['current_price'] == 150.0
+        assert data['forward_eps'] == 6.5
+        assert data['forward_pe'] == 23.08

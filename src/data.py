@@ -361,6 +361,206 @@ def get_stock_info(ticker: str) -> dict:
     except Exception as e:
         raise ValueError(f"Error fetching info for ticker {ticker}: {str(e)}")
 
+
+def fetch_analyst_price_targets(ticker: str) -> Dict:
+    """
+    Fetch analyst price target forecasts from yfinance.
+    
+    Args:
+        ticker (str): The stock ticker symbol (e.g., 'AAPL' for Apple)
+    
+    Returns:
+        Dict: Dictionary containing analyst price targets:
+            - current: Current stock price
+            - low: Lowest analyst price target
+            - high: Highest analyst price target
+            - mean: Mean analyst price target
+            - median: Median analyst price target
+    
+    Raises:
+        ValueError: If the ticker is invalid or if data cannot be fetched
+    """
+    try:
+        stock = yf.Ticker(ticker)
+        targets = stock.analyst_price_targets
+        return targets
+    except Exception as e:
+        raise ValueError(f"Error fetching analyst price targets for {ticker}: {str(e)}")
+
+
+def fetch_analyst_earnings_forecast(ticker: str) -> pd.DataFrame:
+    """
+    Fetch analyst earnings (EPS) estimates from yfinance.
+    
+    Args:
+        ticker (str): The stock ticker symbol (e.g., 'AAPL' for Apple)
+    
+    Returns:
+        pd.DataFrame: DataFrame containing earnings estimates with rows for:
+            - Current Quarter
+            - Next Quarter
+            - Current Year
+            - Next Year
+        And columns:
+            - numberOfAnalysts: Number of analysts providing estimates
+            - avg: Average EPS estimate
+            - low: Lowest EPS estimate
+            - high: Highest EPS estimate
+            - yearAgoEps: EPS from same period last year
+            - growth: Expected growth rate
+    
+    Raises:
+        ValueError: If the ticker is invalid or if data cannot be fetched
+    """
+    try:
+        stock = yf.Ticker(ticker)
+        earnings = stock.earnings_estimate
+        
+        if earnings is None or earnings.empty:
+            raise ValueError(f"No earnings estimate data available for {ticker}")
+        
+        return earnings
+    except Exception as e:
+        raise ValueError(f"Error fetching analyst earnings estimates for {ticker}: {str(e)}")
+
+
+def fetch_analyst_revenue_forecast(ticker: str) -> pd.DataFrame:
+    """
+    Fetch analyst revenue estimates from yfinance.
+    
+    Args:
+        ticker (str): The stock ticker symbol (e.g., 'AAPL' for Apple)
+    
+    Returns:
+        pd.DataFrame: DataFrame containing revenue estimates with rows for:
+            - Current Quarter
+            - Next Quarter
+            - Current Year
+            - Next Year
+        And columns:
+            - numberOfAnalysts: Number of analysts providing estimates
+            - avg: Average revenue estimate
+            - low: Lowest revenue estimate
+            - high: Highest revenue estimate
+            - yearAgoRevenue: Revenue from same period last year
+            - growth: Expected growth rate
+    
+    Raises:
+        ValueError: If the ticker is invalid or if data cannot be fetched
+    """
+    try:
+        stock = yf.Ticker(ticker)
+        revenue = stock.revenue_estimate
+        
+        if revenue is None or revenue.empty:
+            raise ValueError(f"No revenue estimate data available for {ticker}")
+        
+        return revenue
+    except Exception as e:
+        raise ValueError(f"Error fetching analyst revenue estimates for {ticker}: {str(e)}")
+
+
+def fetch_analyst_growth_estimates(ticker: str) -> pd.DataFrame:
+    """
+    Fetch analyst growth estimates from yfinance.
+    
+    Args:
+        ticker (str): The stock ticker symbol (e.g., 'AAPL' for Apple)
+    
+    Returns:
+        pd.DataFrame: DataFrame containing growth estimates with rows for:
+            - Current Qtr.
+            - Next Qtr.
+            - Current Year
+            - Next Year
+            - Next 5 Years (per annum)
+            - Past 5 Years (per annum)
+        And column showing the ticker's estimated growth
+    
+    Raises:
+        ValueError: If the ticker is invalid or if data cannot be fetched
+    """
+    try:
+        stock = yf.Ticker(ticker)
+        growth = stock.growth_estimates
+        
+        if growth is None or growth.empty:
+            raise ValueError(f"No growth estimate data available for {ticker}")
+        
+        return growth
+    except Exception as e:
+        raise ValueError(f"Error fetching analyst growth estimates for {ticker}: {str(e)}")
+
+
+def get_forward_pe_data(ticker: str) -> Dict:
+    """
+    Get forward P/E ratio and related analyst forecast data from yfinance.
+    
+    This function fetches analyst estimates and calculates forward P/E ratio
+    based on next year's EPS estimate and current stock price.
+    
+    Args:
+        ticker (str): The stock ticker symbol (e.g., 'AAPL' for Apple)
+    
+    Returns:
+        Dict: Dictionary containing:
+            - current_price: Current stock price
+            - forward_eps: Analyst consensus forward (next year) EPS estimate
+            - forward_pe: Forward P/E ratio (current_price / forward_eps)
+            - trailing_pe: Historical P/E ratio from stock info
+            - target_price: Analyst mean target price
+            - num_analysts: Number of analysts providing estimates
+    
+    Raises:
+        ValueError: If the ticker is invalid or if data cannot be fetched
+    """
+    try:
+        stock = yf.Ticker(ticker)
+        
+        # Get current price and trailing P/E from info
+        info = stock.info
+        current_price = info.get('currentPrice') or info.get('regularMarketPrice')
+        trailing_pe = info.get('trailingPE')
+        target_price = info.get('targetMeanPrice')
+        
+        # Get forward EPS estimate
+        earnings_est = stock.earnings_estimate
+        
+        if earnings_est is None or earnings_est.empty:
+            # Try to get from info dict
+            forward_eps = info.get('forwardEps')
+            forward_pe = info.get('forwardPE')
+            num_analysts = None
+        else:
+            # Get next year EPS estimate if available
+            if 'Next Year' in earnings_est.index:
+                forward_eps = earnings_est.loc['Next Year', 'avg']
+                num_analysts = earnings_est.loc['Next Year', 'numberOfAnalysts']
+            elif 'Current Year' in earnings_est.index:
+                forward_eps = earnings_est.loc['Current Year', 'avg']
+                num_analysts = earnings_est.loc['Current Year', 'numberOfAnalysts']
+            else:
+                forward_eps = None
+                num_analysts = None
+            
+            # Calculate forward P/E
+            if forward_eps and current_price:
+                forward_pe = current_price / forward_eps
+            else:
+                forward_pe = info.get('forwardPE')
+        
+        return {
+            'current_price': current_price,
+            'forward_eps': forward_eps,
+            'forward_pe': forward_pe,
+            'trailing_pe': trailing_pe,
+            'target_price': target_price,
+            'num_analysts': num_analysts
+        }
+    
+    except Exception as e:
+        raise ValueError(f"Error fetching forward P/E data for {ticker}: {str(e)}")
+
 def get_tickers() -> pd.DataFrame:
     from io import StringIO
     import requests

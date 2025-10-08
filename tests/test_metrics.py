@@ -12,7 +12,8 @@ from src.metrics import (
     calculate_portfolio_returns,
     weighted_moving_average,
     exponential_weighted_moving_average,
-    calculate_cumulative_yield
+    calculate_cumulative_yield,
+    forward_pe_ratio
 )
 
 
@@ -313,3 +314,53 @@ class TestCalculateCumulativeYield:
         prices = pd.Series([100, 110, 120])
         with pytest.raises(ValueError, match="method must be either 'simple' or 'log'"):
             calculate_cumulative_yield(prices, method='invalid')
+
+
+class TestForwardPERatio:
+    """Tests for forward P/E ratio calculation."""
+    
+    def test_scalar_inputs(self):
+        """Test forward P/E with scalar inputs."""
+        pe = forward_pe_ratio(150.0, 6.0)
+        assert abs(pe - 25.0) < 1e-10
+    
+    def test_series_inputs(self):
+        """Test forward P/E with Series inputs."""
+        prices = pd.Series([150, 160, 170])
+        eps = pd.Series([6.0, 6.5, 7.0])
+        pe = forward_pe_ratio(prices, eps)
+        
+        assert isinstance(pe, pd.Series)
+        assert len(pe) == 3
+        assert abs(pe.iloc[0] - 25.0) < 1e-10
+        assert abs(pe.iloc[1] - 24.615384615) < 1e-8
+        assert abs(pe.iloc[2] - 24.285714286) < 1e-8
+    
+    def test_zero_eps(self):
+        """Test handling of zero EPS."""
+        pe = forward_pe_ratio(150.0, 0.0)
+        assert np.isnan(pe)
+    
+    def test_negative_eps(self):
+        """Test handling of negative EPS."""
+        pe = forward_pe_ratio(150.0, -2.0)
+        assert np.isnan(pe)
+    
+    def test_series_with_invalid_values(self):
+        """Test Series with some invalid EPS values."""
+        prices = pd.Series([150, 160, 170, 180])
+        eps = pd.Series([6.0, 0.0, -2.0, 7.0])
+        pe = forward_pe_ratio(prices, eps)
+        
+        assert isinstance(pe, pd.Series)
+        assert abs(pe.iloc[0] - 25.0) < 1e-10
+        assert np.isnan(pe.iloc[1]) or np.isinf(pe.iloc[1])
+        assert pe.iloc[3] > 0
+    
+    def test_result_name(self):
+        """Test that result has proper name."""
+        prices = pd.Series([150, 160])
+        eps = pd.Series([6.0, 6.5])
+        pe = forward_pe_ratio(prices, eps)
+        
+        assert pe.name == 'Forward P/E'

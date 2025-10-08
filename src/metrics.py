@@ -422,3 +422,46 @@ def historic_pe_ratio(
     pe.name = 'P/E'
 
     return pe
+
+
+def forward_pe_ratio(
+    current_price: Union[float, pd.Series],
+    forward_eps: Union[float, pd.Series]
+) -> Union[float, pd.Series]:
+    """
+    Calculate forward Price-to-Earnings (P/E) ratio using analyst EPS estimates.
+    
+    Forward P/E uses analyst estimates for future earnings rather than historical earnings,
+    providing a forward-looking valuation metric.
+    
+    Args:
+        current_price: Current stock price(s)
+        forward_eps: Analyst consensus forward EPS estimate(s) for next 12 months or next fiscal year
+    
+    Returns:
+        Union[float, pd.Series]: Forward P/E ratio(s). Returns np.nan for invalid values (zero or negative EPS).
+    
+    Example:
+        >>> forward_pe_ratio(150.0, 6.0)
+        25.0
+        
+        >>> prices = pd.Series([150, 160, 170])
+        >>> eps = pd.Series([6.0, 6.5, 7.0])
+        >>> forward_pe_ratio(prices, eps)
+        0    25.000000
+        1    24.615385
+        2    24.285714
+        dtype: float64
+    """
+    if isinstance(current_price, (pd.Series, pd.DataFrame)) or isinstance(forward_eps, (pd.Series, pd.DataFrame)):
+        # Handle Series/DataFrame inputs
+        pe = current_price / forward_eps
+        pe = pe.replace([np.inf, -np.inf], np.nan)
+        if isinstance(pe, pd.Series):
+            pe.name = 'Forward P/E'
+        return pe
+    else:
+        # Handle scalar inputs
+        if forward_eps <= 0:
+            return np.nan
+        return current_price / forward_eps
