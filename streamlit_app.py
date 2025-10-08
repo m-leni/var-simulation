@@ -1,16 +1,17 @@
 """
 Streamlit frontend for VaR simulation and stock analysis.
 """
-import os
 from dotenv import load_dotenv
 
 import numpy as np
 import pandas as pd
 from datetime import date, timedelta
-from dateutil.relativedelta import relativedelta
+import matplotlib.pyplot as plt
 
 import sqlite3 as sql
 import streamlit as st
+
+from src.params import RISK_TOLERANCE_QUESTIONS
 
 from src.data import (
     fetch_stock_data,
@@ -44,13 +45,10 @@ st.set_page_config(
     layout="wide"
 )
 
-# Import get_sp500_tickers at the top with other imports
-from src.data import get_sp500_tickers, get_qqq_tickers
-
 # Sidebar for navigation
 page = st.sidebar.selectbox(
     "Choose Analysis",
-    ["Home", "S&P 500 & Indexes", "Stock Analysis", "Single Asset VaR", "Portfolio VaR"]
+    ["Home", "Risk Tolerance Quiz", "S&P 500 & Indexes", "Stock Analysis", "Single Asset VaR", "Portfolio VaR"]
 )
 
 # Home page
@@ -658,3 +656,90 @@ elif page == "Portfolio VaR":
                 except Exception as e:
                     st.error(f"Error calculating portfolio VaR: {str(e)}")
                     st.stop()
+
+# Risk Tolerance Quiz page
+elif page == "Risk Tolerance Quiz":
+    st.title("💰 Grable & Lytton (1999) Risk Tolerance Quiz")
+    st.markdown("This quiz helps assess your **financial risk tolerance** — how comfortable you are with potential gains and losses when investing. Choose the option that best describes you.")
+
+    total_score = 0
+
+    # Progress tracking
+    total_questions = len(RISK_TOLERANCE_QUESTIONS)
+
+    # Count answered questions from session_state so progress updates on rerun
+    answered = sum(1 for i in range(1, total_questions + 1) if st.session_state.get(f"q{i}"))
+
+    # Add custom CSS for the sticky header (uses a marker to target the container)
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stVerticalBlock"] div:has(div.fixed-header-marker) {
+            position: sticky;
+            top: 0;
+            background-color: white;
+            z-index: 999;
+            padding: 1rem;
+            border-bottom: 1px solid #f0f0f0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Create sticky header container with progress bar
+    header_container = st.container()
+    with header_container:
+        progress = answered / total_questions if total_questions else 0
+        # st.progress expects a float between 0 and 1
+        st.progress(progress, text=f"Progress: {answered}/{total_questions} answered")
+        st.write("<div class='fixed-header-marker'/>", unsafe_allow_html=True)
+
+    st.header("📝 Questions")
+
+    # Questions with prominent numbering
+    for i, (q, opts, mapping) in enumerate(RISK_TOLERANCE_QUESTIONS, start=1):
+        st.subheader(f"Question {i} of {total_questions}")
+        # Render radio and rely on Streamlit session_state to persist the choice
+        st.radio(q, opts, key=f"q{i}")
+        st.divider()  # Add visual separation between questions
+
+    # Build responses from session_state so scoring uses the current selections
+    responses = {}
+    for i, (_, opts, mapping) in enumerate(RISK_TOLERANCE_QUESTIONS, start=1):
+        val = st.session_state.get(f"q{i}")
+        if val:
+            # map choice (first character like 'A') to its score
+            responses[i] = mapping[val[0]]
+
+    if len(responses) == len(RISK_TOLERANCE_QUESTIONS):
+        total_score = sum(responses.values())
+        st.success(f"✅ You've completed all {len(RISK_TOLERANCE_QUESTIONS)} questions!")
+
+        if total_score <= 18:
+            level = "LOW risk tolerance"
+            desc = "You prefer stability and security over potential high returns."
+        elif total_score <= 32:
+            level = "MODERATE risk tolerance"
+            desc = "You're comfortable with some risk for reasonable gains."
+        else:
+            level = "HIGH risk tolerance"
+            desc = "You're willing to accept substantial risk for potentially higher rewards."
+
+        st.subheader("🎯 Results")
+        st.metric("Your Total Score", total_score)
+        st.write(f"**Interpretation:** {level}")
+        st.info(desc)
+
+        # Chart comparing user score to averages
+        averages = {"Low": 15, "Moderate": 25, "High": 38, "You": total_score}
+
+        fig, ax = plt.subplots()
+        ax.bar(averages.keys(), averages.values())
+        ax.set_title("Risk Tolerance Score Comparison")
+        ax.set_ylabel("Score (13–47)")
+        st.pyplot(fig)
+
+    else:
+        st.warning("⚠️ Please answer all questions to see your result.")
