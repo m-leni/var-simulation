@@ -19,6 +19,7 @@ dependencies = [
     "yfinance>=0.2.66",
     "numpy>=1.26.0",
     "requests>=2.31.0",
+    "textual>=0.90.0",
 ]
 
 [project.optional-dependencies]
