@@ -1,8 +1,6 @@
 """
 Streamlit frontend for VaR simulation and stock analysis.
 """
-from dotenv import load_dotenv
-
 import numpy as np
 import pandas as pd
 from datetime import date, timedelta

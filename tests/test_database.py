@@ -1,9 +1,7 @@
 """
 Unit tests for src/database.py module.
 """
-import pytest
 import pandas as pd
-import sqlite3 as sql
 from src.database import create_db, insert_to_stock_data, insert_to_financial_data
 
 
@@ -257,3 +255,4 @@ class TestInsertToFinancialData:
         # Should only have the new data
         df = pd.read_sql("SELECT * FROM financial_data WHERE Ticker='AAPL'", in_memory_db)
         assert len(df) == 2
+        assert initial_count == len(df)
