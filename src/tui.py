@@ -5,8 +5,10 @@ This module contains all TUI-specific widgets and the main application class.
 import sqlite3 as sql
 from datetime import date, timedelta
 from typing import Optional
+import io
 
 import pandas as pd
+import plotext as plt
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, VerticalScroll
 from textual.widgets import (
@@ -65,6 +67,50 @@ class StockMetricsDisplay(Static):
         self.update(metrics_text)
 
 
+class PriceHistoryPlot(Static):
+    """Widget to display a terminal-based price history plot using plotext."""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+    
+    def update_plot(self, df: pd.DataFrame, ticker: str):
+        """Update the plot with price history data."""
+        if df.empty:
+            self.update("[dim]No data to plot[/dim]")
+            return
+        
+        # Clear previous plot
+        plt.clear_figure()
+        
+        # Prepare data - limit to last 100 points for readability
+        plot_df = df.tail(100).copy()
+        
+        # Convert dates to string labels (show every Nth date to avoid clutter)
+        dates = plot_df['Date'].astype(str).tolist()
+        indices = list(range(len(dates)))
+        
+        # Create the plot
+        plt.plot(indices, plot_df['Close'].tolist(), label='Close Price', marker='braille')
+        
+        # Set labels
+        plt.title(f"{ticker} - Price History (Last {len(plot_df)} Days)")
+        plt.xlabel("Date")
+        plt.ylabel("Price ($)")
+        
+        # Show date labels for start, middle, and end
+        if len(dates) > 0:
+            label_indices = [0, len(dates) // 2, len(dates) - 1]
+            label_positions = [indices[i] for i in label_indices if i < len(dates)]
+            label_dates = [dates[i] for i in label_indices if i < len(dates)]
+            plt.xticks(label_positions, label_dates)
+        
+        # Get the plot as a string
+        plot_str = plt.build()
+        
+        # Update the widget with the plot
+        self.update(plot_str)
+
+
 class StockAnalysisApp(App):
     """A Textual app for stock analysis."""
     
@@ -86,6 +132,14 @@ class StockAnalysisApp(App):
         margin-top: 1;
         background: $panel;
         border: solid $accent;
+    }
+    
+    #plot-container {
+        height: auto;
+        padding: 1;
+        margin-top: 1;
+        background: $panel;
+        border: solid $warning;
     }
     
     #table-container {
@@ -110,6 +164,11 @@ class StockAnalysisApp(App):
     }
     
     StockMetricsDisplay {
+        height: auto;
+        padding: 1;
+    }
+    
+    PriceHistoryPlot {
         height: auto;
         padding: 1;
     }
@@ -147,6 +206,9 @@ class StockAnalysisApp(App):
         with Container(id="metrics-container"):
             yield StockMetricsDisplay(id="metrics-display")
         
+        with Container(id="plot-container"):
+            yield PriceHistoryPlot(id="price-plot")
+        
         with VerticalScroll(id="table-container"):
             yield DataTable(id="stock-table")
         
@@ -158,9 +220,12 @@ class StockAnalysisApp(App):
         table.cursor_type = "row"
         table.zebra_stripes = True
         
-        # Initial message
+        # Initial messages
         metrics = self.query_one("#metrics-display", StockMetricsDisplay)
         metrics.update("[dim]Enter a ticker and click 'Fetch Data' to begin[/dim]")
+        
+        plot = self.query_one("#price-plot", PriceHistoryPlot)
+        plot.update("[dim]Price history will appear here after fetching data[/dim]")
     
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press events."""
@@ -241,6 +306,10 @@ class StockAnalysisApp(App):
         metrics = self.query_one("#metrics-display", StockMetricsDisplay)
         metrics.update_metrics(df, ticker)
         
+        # Update price plot
+        plot = self.query_one("#price-plot", PriceHistoryPlot)
+        plot.update_plot(df, ticker)
+        
         # Update table
         table = self.query_one("#stock-table", DataTable)
         table.clear(columns=True)
@@ -273,6 +342,9 @@ class StockAnalysisApp(App):
         
         metrics = self.query_one("#metrics-display", StockMetricsDisplay)
         metrics.update("[dim]Data cleared. Enter a ticker to begin.[/dim]")
+        
+        plot = self.query_one("#price-plot", PriceHistoryPlot)
+        plot.update("[dim]Price history will appear here after fetching data[/dim]")
         
         ticker_input = self.query_one("#ticker-input", Input)
         days_input = self.query_one("#days-input", Input)

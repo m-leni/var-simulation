@@ -4,7 +4,7 @@ Tests for the TUI stock analysis application.
 import pytest
 import pandas as pd
 from datetime import date, timedelta
-from src.tui import StockMetricsDisplay
+from src.tui import StockMetricsDisplay, PriceHistoryPlot
 
 
 def test_stock_metrics_display():
@@ -36,16 +36,47 @@ def test_stock_metrics_display():
     assert widget.renderable is not None
 
 
+def test_price_history_plot():
+    """Test the PriceHistoryPlot widget."""
+    # Create a sample dataframe
+    dates = pd.date_range(start='2024-01-01', end='2024-01-10', freq='D')
+    data = {
+        'Date': dates,
+        'Open': [150.0 + i for i in range(len(dates))],
+        'High': [152.0 + i for i in range(len(dates))],
+        'Low': [148.0 + i for i in range(len(dates))],
+        'Close': [151.0 + i for i in range(len(dates))],
+        'Volume': [1000000 + i * 10000 for i in range(len(dates))],
+    }
+    df = pd.DataFrame(data)
+    
+    # Create widget instance
+    widget = PriceHistoryPlot()
+    
+    # Test update_plot
+    widget.update_plot(df, "AAPL")
+    
+    # Widget should contain plot text
+    assert widget.renderable is not None
+    
+    # Test with empty dataframe
+    empty_df = pd.DataFrame()
+    widget.update_plot(empty_df, "TEST")
+    assert widget.renderable is not None
+
+
 def test_tui_app_imports():
     """Test that all TUI components can be imported."""
     from src.tui import (
         StockAnalysisApp,
         StockMetricsDisplay,
+        PriceHistoryPlot,
     )
     
     # Check classes exist
     assert StockAnalysisApp is not None
     assert StockMetricsDisplay is not None
+    assert PriceHistoryPlot is not None
 
 
 def test_sample_data_generation():

@@ -29,6 +29,7 @@ uv run python tui_app.py
 - Interactive stock ticker input
 - Configurable date range (days)
 - Real-time data fetching with caching
+- **Terminal-based price history plot** (using plotext)
 - Stock metrics display (price, volume, period high/low)
 - Data table with OHLCV information
 - Keyboard shortcuts:
