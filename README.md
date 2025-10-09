@@ -190,19 +190,44 @@ pytest --cov=src --cov-report=html
 ## Upcoming Features & Implementation Plan
 
 ### 1. Risk Profile Assessment System
-**Purpose**: Implement user risk aversion measurement and persistence
-- [ ] Create risk assessment questionnaire based on standard financial profiling instruments
-  - Design questions and scoring system
-  - Implement form validation and score calculation
-  - Add risk profile categories (Conservative, Moderate, Aggressive, etc.)
-- [ ] Develop risk profile persistence
-  - Add user profile database schema
-  - Implement session management for profile persistence
-  - Create profile summary view
-- [ ] Add manual risk profile override option
-  - Allow direct profile selection
-  - Add profile reset functionality
-  - Implement profile update tracking
+**Purpose**: Implement user risk aversion measurement, persist user profiles, and expose the results for personalization and recommendations.
+
+Status: Planned → Partially implemented (questionnaire stored in `src/params.py`). Next steps provide a clear implementation checklist and acceptance criteria.
+
+Implementation checklist (concrete):
+- [ ] Data model & persistence
+  - Create a `risk_profiles` table (or add columns to `users`) with fields: id, user_id (nullable for anonymous), score, category, raw_answers (JSON), created_at, updated_at.
+  - Provide a small migration script or a `create_risk_profiles_table()` helper in `src/database.py`.
+  - Add a Pydantic dataclass / datamodel (e.g., `src/datamodels.py`) for validating submissions and profile payloads.
+
+- [ ] API / backend
+  - Add an endpoint (or internal function) to save and retrieve risk profiles: POST `/api/risk-profile` (save) and GET `/api/risk-profile?user_id=<id>` (retrieve). In the Streamlit app, use `insert_to_financial_data`-style helper or a small wrapper.
+  - Implement server-side validation and scoring logic that consumes the questionnaire answers and returns: {score:int, category:str, details: {question:answer, ...}}.
+
+- [ ] Frontend (Streamlit)
+  - Add a dedicated Risk Profile view (already added): render the questions from `src/params.py`, store answers in `st.session_state`, compute score client-side and then POST to the backend to persist (optional for anonymous users).
+  - Add a small summary panel that shows score, category, and suggested allocation ranges (example: Conservative 0-18 → 20% equities, 50% bonds, 30% cash).
+  - Provide a "Save profile" button for signed-in users and a "Reset quiz" button that clears the session keys.
+
+- [ ] Scoring & categories
+  - Define explicit thresholds and deterministic mapping (e.g., score ≤ 18 => Conservative, 19–32 => Moderate, ≥ 33 => Aggressive). Document these thresholds in README and `src/params.py` as constants.
+  - Provide example recommended allocations per category (documented and surfaced in the UI).
+
+- [ ] Tests
+  - Unit tests for scoring logic (happy path + edge cases).
+  - Integration tests that simulate a full quiz submission and DB persistence (use test DB file under `tests/`).
+  - UI-level smoke test (Streamlit) to ensure the view renders and session_state updates.
+
+- [ ] Acceptance criteria
+  - Questionnaire loads from `src/params.py` and matches the defined question set.
+  - Selecting answers updates the visible score and sticky progress bar immediately.
+  - Clicking "Save profile" persists a record in the `risk_profiles` table with correct score and category.
+  - Tests cover scoring logic and DB persistence.
+
+Implementation notes / next steps:
+- `src/params.py` already centralizes the questions — keep scoring thresholds in that module too.
+- Add a small helper in `src/database.py` to create the risk_profiles table and insert profiles.
+- If you want, I can implement the DB helper + a small set of unit tests in the next change.
 
 ### 2. Enhanced Stock Analysis & Valuation
 **Purpose**: Add analyst estimates and advanced P/E analysis
@@ -249,20 +274,7 @@ pytest --cov=src --cov-report=html
   - Create rebalancing suggestions
   - Add target allocation tracking
 
-### 5. Hedging Strategies System
-**Purpose**: Provide automated hedging recommendations
-- [ ] Implement hedging instruments analysis
-  - Add options strategy evaluation
-  - Implement futures contract analysis
-  - Create inverse ETF matching
-- [ ] Develop hedging recommendations
-  - Create cost-benefit analysis
-  - Implement strategy ranking
-  - Add risk reduction metrics
-- [ ] Build hedging simulation
-  - Create strategy backtesting
-  - Implement cost modeling
-  - Add performance tracking
+<!-- Section 5 removed as requested -->
 
 ## Technical Dependencies & Prerequisites
 - Update database schema for user profiles and returns storage
