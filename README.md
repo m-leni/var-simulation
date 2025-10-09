@@ -22,7 +22,7 @@ streamlit run streamlit_app.py
 The TUI provides a terminal-based interface for stock analysis, perfect for server environments or users who prefer working in the terminal.
 
 ```bash
-python tui_app.py
+uv run python tui_app.py
 ```
 
 **Features:**

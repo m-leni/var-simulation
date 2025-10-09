@@ -4,7 +4,7 @@ Tests for the TUI stock analysis application.
 import pytest
 import pandas as pd
 from datetime import date, timedelta
-from tui_app import StockMetricsDisplay
+from src.tui import StockMetricsDisplay
 
 
 def test_stock_metrics_display():
@@ -38,7 +38,7 @@ def test_stock_metrics_display():
 
 def test_tui_app_imports():
     """Test that all TUI components can be imported."""
-    from tui_app import (
+    from src.tui import (
         StockAnalysisApp,
         StockMetricsDisplay,
     )

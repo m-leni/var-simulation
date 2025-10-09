@@ -109,7 +109,7 @@ def demo_tui():
     print("• Rich metrics display")
     print("• Scrollable data table")
     print("• Keyboard shortcuts (q=quit, r=refresh)")
-    print("\nTo launch the TUI: python tui_app.py")
+    print("\nTo launch the TUI: uv run python tui_app.py")
     print("=" * 60)
 
 
