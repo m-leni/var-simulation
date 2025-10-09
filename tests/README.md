@@ -58,44 +58,51 @@ pytest tests/test_metrics.py::TestCalculateReturns::test_log_returns_with_series
 
 ## Test Structure
 
+
 ### Directory Layout
 ```
 tests/
 ├── __init__.py
-├── conftest.py              # Shared fixtures
-├── test_metrics.py          # Core financial calculations
-├── test_data.py            # Data fetching and processing
-├── test_database.py        # SQL operations
-├── test_datamodels.py      # Data validation
-└── test_streamlit_app.py   # UI components
+├── conftest.py                 # Shared fixtures (sample prices, returns, stock data)
+├── test_metrics.py             # Metrics: returns, VaR, portfolio, cumulative yield, etc.
+├── test_data.py                # Data fetching/info tests (mocked)
+├── test_database.py            # Database creation/insertion tests
+├── test_expected_outputs_example.py # Example: deterministic output tests
+├── test_streamlit_app.py       # Streamlit app import/utility tests
+├── data/
+│   ├── aapl_sample.json
+│   ├── portfolio_sample.json
+│   └── outputs/
+│       └── metrics_expected.json
 ```
+
 
 ### Module Coverage
 
-#### `test_metrics.py` (40+ tests)
+#### `test_metrics.py`
 - Calculate returns (log/simple)
 - Historical VaR
 - Parametric VaR
 - Portfolio calculations
-- Moving averages
+- Cumulative yield
 
-#### `test_data.py` (20+ tests)
-- Stock data fetching
+#### `test_data.py`
+- Stock data fetching (mocked)
 - Financial data processing
 - Date handling
 - Market index components
 
-#### `test_database.py` (15+ tests)
+#### `test_database.py`
 - Schema creation
 - Data insertion
 - Query operations
 - Transaction handling
 
-#### `test_datamodels.py` (10+ tests)
-- Input validation
-- Type conversion
-- Edge cases
-- Error handling
+#### `test_expected_outputs_example.py`
+- Deterministic output comparison for core metrics
+
+#### `test_streamlit_app.py`
+- Import and utility tests for Streamlit app (UI logic not directly tested)
 
 ### Test Data & Expected Outputs
 
@@ -115,8 +122,6 @@ tests/
 
 1. **Deterministic Functions** (tolerance: 1e-10)
    - `calculate_returns` (log/simple)
-   - `weighted_moving_average`
-   - `exponential_weighted_moving_average`
    - `calculate_cumulative_yield`
 
 2. **Statistical Functions** (tolerance: 0.05-0.1)
