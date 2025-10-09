@@ -2978,7 +2978,6 @@ dev = [
     { name = "pytest-cov" },
     { name = "pytest-mock" },
     { name = "responses" },
-    { name = "ruff" },
     { name = "safety" },
 ]
 
@@ -3023,7 +3022,6 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "requests", specifier = ">=2.31.0" },
     { name = "responses", marker = "extra == 'dev'", specifier = ">=0.24.0" },
-    { name = "ruff", marker = "extra == 'dev'" },
     { name = "ruff", extras = ["dev"], specifier = ">=0.14.0" },
     { name = "safety", marker = "extra == 'dev'", specifier = ">=3.0.0" },
     { name = "scipy", specifier = ">=1.16.2" },

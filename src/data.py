@@ -2,7 +2,6 @@
 This module provides functions to fetch stock data from Yahoo Finance API.
 """
 import os
-import ssl
 from bs4 import BeautifulSoup
 
 import numpy as np
@@ -401,7 +400,6 @@ def get_sp500_tickers(save_locally: bool = False) -> pd.DataFrame:
     Raises:
         ValueError: If unable to fetch or parse the Wikipedia table
     """
-    import ssl
     from bs4 import BeautifulSoup
     
     url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
@@ -468,7 +466,7 @@ def get_sp500_tickers(save_locally: bool = False) -> pd.DataFrame:
             if os.path.exists('data/sp500_companies.csv'):
                 print("Warning: Using cached S&P 500 data due to fetch error")
                 return pd.read_csv('data/sp500_companies.csv')
-        except Exception as e:
+        except Exception:
             print("Warning: Unable to load cached S&P 500 data")
         
         raise ValueError(f"Error fetching S&P 500 companies: {str(e)}")
