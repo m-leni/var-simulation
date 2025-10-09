@@ -44,7 +44,7 @@ st.set_page_config(
 # Sidebar for navigation
 page = st.sidebar.selectbox(
     "Choose Analysis",
-    ["Home", "Risk Tolerance Quiz", "S&P 500 & Indexes", "Stock Analysis", "Single Asset VaR", "Portfolio VaR"]
+    ["Home", "Risk Tolerance Quiz", "S&P 500 & Indexes", "Stock Analysis", "Portfolio VaR"]
 )
 
 # Home page
