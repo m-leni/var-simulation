@@ -23,6 +23,7 @@ dependencies = [
     "pytest>=8.4.2",
     "textual>=0.90.0",
     "ruff[dev]>=0.14.0",
+    "textual>=0.90.0",
 ]
 
 [project.optional-dependencies]
