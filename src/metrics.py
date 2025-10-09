@@ -9,13 +9,6 @@ from scipy import stats
 from typing import Union, Dict
 
 
-def calculate_returns(
-    prices: Union[pd.Series, np.ndarray, list]) -> np.ndarray:
-    """Calculate log returns from a series of prices."""
-    prices = np.array(prices)
-    return np.log(prices[1:] / prices[:-1])
-
-
 def calculate_portfolio_returns(
     stock_prices: Dict[str, np.ndarray],
     weights: np.ndarray
