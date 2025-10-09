@@ -17,7 +17,7 @@ The library now includes comprehensive analyst forecast data from yfinance:
 - **Growth Estimates**: Retrieve analyst growth rate expectations
 - **Forward P/E Ratio**: Calculate forward-looking P/E ratios using analyst estimates
 
-See [examples/README.md](examples/README.md) for usage examples.
+See [notebooks/analyst_forecast_examples.ipynb](notebooks/analyst_forecast_examples.ipynb) for usage examples.
 
 ## Development Guide
 
