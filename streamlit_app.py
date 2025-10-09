@@ -18,8 +18,6 @@ from src.data import (
 from src.data import get_stock_info, scrape_qqq_holdings
 from src.visualization import plot_stock_analysis, plot_financial_metrics
 from src.metrics import (
-    historical_var,
-    parametric_var,
     calculate_returns,
     portfolio_var
 )
@@ -365,70 +363,7 @@ elif page == "Stock Analysis":
         
         except Exception as e:
             st.error(f"Error fetching financial data: {str(e)}")
-        
-# Single Asset VaR page
-elif page == "Single Asset VaR":
-    st.title("Single Asset VaR Analysis")
-    
-    st.write("""
-    Calculate Value at Risk (VaR) for a single asset using historical returns.
-    Enter your returns series and parameters below.
-    """)
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        returns_input = st.text_area(
-            "Returns Series",
-            help="Enter return values, one per line or comma-separated (e.g., 0.02, -0.01, 0.03)"
-        )
-        
-    with col2:
-        confidence_level = st.slider(
-            "Confidence Level",
-            min_value=0.8,
-            max_value=0.99,
-            value=0.95,
-            step=0.01,
-            help="Confidence level for VaR calculation (e.g., 0.95 for 95%)"
-        )
-        
-        investment_value = st.number_input(
-            "Investment Value",
-            min_value=0.0,
-            value=1.0,
-            step=0.1,
-            help="Current investment value"
-        )
-    
-    if st.button("Calculate VaR"):
-        if returns_input:
-            # Parse returns
-            returns = [float(x.strip()) for x in returns_input.replace('\n', ',').split(',')
-                      if x.strip()]
-            
-            if returns:
-                with st.spinner("Calculating VaR..."):
-                    result = {
-                        'historical_var': historical_var(returns, confidence_level, investment_value),
-                        'parametric_var': parametric_var(returns, confidence_level, investment_value),
-                    }
-                    if result:
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.metric(
-                                "Historical VaR",
-                                f"{result['historical_var']:.2f}",
-                                help="Maximum potential loss using historical simulation"
-                            )
-                        with col2:
-                            st.metric(
-                                "Parametric VaR",
-                                f"{result['parametric_var']:.2f}",
-                                help="Maximum potential loss assuming normal distribution"
-                            )
-            else:
-                st.error("Please enter valid returns values")
+
 
 # Portfolio VaR page
 elif page == "Portfolio VaR":
