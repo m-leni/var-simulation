@@ -7,8 +7,26 @@ on:
     branches: [ stage, main ]
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+    
+    - name: Set up Python
+      run: uv python install 3.13
+    
+    - name: Install dependencies
+      run: uv sync --extra dev
+    
+    - name: Run ruff linter
+      run: uv run ruff check src tests streamlit_app.py
+
   test:
     runs-on: ubuntu-latest
+    needs: lint
     strategy:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
@@ -45,24 +63,6 @@ jobs:
       if: matrix.python-version == '3.13'
       run: |
         uv run coverage report --fail-under=80 || echo "Coverage below 80% threshold"
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install uv
-      uses: astral-sh/setup-uv@v4
-    
-    - name: Set up Python
-      run: uv python install 3.13
-    
-    - name: Install dependencies
-      run: |
-        uv sync --extra dev
-    
-    - name: Run flake8
-      run: |
         uv run flake8 src/ streamlit_app.py --max-line-length=120 --extend-ignore=E203,W503 || echo "Linting issues found"
       continue-on-error: true
     
