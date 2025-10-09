@@ -20,6 +20,7 @@ dependencies = [
     "numpy>=1.26.0",
     "requests>=2.31.0",
     "pytest>=8.4.2",
+    "ruff[dev]>=0.14.0",
 ]
 
 [project.optional-dependencies]
@@ -36,7 +37,7 @@ dev = [
     "isort>=5.13.0",
     "mypy>=1.8.0",
     "bandit>=1.7.0",
-    "safety>=3.0.0",
+    "safety>=3.0.0"
 ]
 
 [tool.uv]
