@@ -1,6 +1,43 @@
 # var-simulation
 Aplicación para estimación del Value At Risk e KPIs financieros.
 
+## Features
+
+- **Web Interface**: Streamlit-based dashboard for interactive analysis
+- **Terminal User Interface (TUI)**: Command-line interface for stock analysis using Textual
+- VaR Simulation and Portfolio Analysis
+- Real-time stock data fetching
+- Financial metrics visualization
+
+## Usage
+
+### Web Interface (Streamlit)
+
+```bash
+streamlit run streamlit_app.py
+```
+
+### Terminal User Interface (TUI)
+
+The TUI provides a terminal-based interface for stock analysis, perfect for server environments or users who prefer working in the terminal.
+
+```bash
+uv run python tui_app.py
+```
+
+**Features:**
+- Interactive stock ticker input
+- Configurable date range (days)
+- Real-time data fetching with caching
+- **Terminal-based price history plot** (using plotext)
+- Stock metrics display (price, volume, period high/low)
+- Data table with OHLCV information
+- Keyboard shortcuts:
+  - `q` - Quit application
+  - `r` - Refresh current data
+  - `Tab` - Navigate between fields
+  - `Enter` - Submit/Fetch data
+
 ## Development Guide
 
 ### Testing
