@@ -4,8 +4,6 @@ This module contains all TUI-specific widgets and the main application class.
 """
 import sqlite3 as sql
 from datetime import date, timedelta
-from typing import Optional
-import io
 
 import pandas as pd
 import plotext as plt
@@ -81,9 +79,11 @@ class PriceHistoryPlot(Static):
         
         # Clear previous plot
         plt.clear_figure()
+    
+        plt.plot_size(90, 30)
         
         # Prepare data - limit to last 100 points for readability
-        plot_df = df.tail(100).copy()
+        plot_df = df.tail(50).copy()
         
         # Convert dates to string labels (show every Nth date to avoid clutter)
         dates = plot_df['Date'].astype(str).tolist()
@@ -120,7 +120,7 @@ class StockAnalysisApp(App):
     }
     
     #input-container {
-        height: auto;
+        height: 20;
         padding: 1;
         background: $panel;
         border: solid $primary;
@@ -135,11 +135,9 @@ class StockAnalysisApp(App):
     }
     
     #plot-container {
-        height: auto;
-        padding: 1;
-        margin-top: 1;
+        height: 90;
+        width: 700;
         background: $panel;
-        border: solid $warning;
     }
     
     #table-container {
@@ -197,8 +195,8 @@ class StockAnalysisApp(App):
         with Container(id="input-container"):
             yield Label("[bold]Stock Analysis - TUI[/bold]")
             yield Label("Enter a stock ticker and number of days:")
-            yield Input(placeholder="Ticker (e.g., AAPL)", id="ticker-input")
-            yield Input(placeholder="Days (e.g., 252)", id="days-input", value="252")
+            yield Input(placeholder="Ticker (e.g., AAPL)", id="ticker-input", value="AAPL")
+            yield Input(placeholder="Days (e.g., 252)", id="days-input", value="50")
             with Horizontal():
                 yield Button("Fetch Data", variant="primary", id="fetch-button")
                 yield Button("Clear", variant="default", id="clear-button")
@@ -251,13 +249,13 @@ class StockAnalysisApp(App):
             return
         
         try:
-            days = int(days_input.value) if days_input.value else 252
+            days = int(days_input.value) if days_input.value else 50
         except ValueError:
             self.notify("Days must be a number", severity="error")
             return
         
-        if days < 1 or days > 500:
-            self.notify("Days must be between 1 and 500", severity="error")
+        if days < 1 or days > 51:
+            self.notify("Days must be between 1 and 50", severity="error")
             return
         
         # Show loading notification
