@@ -1,7 +1,6 @@
 """
 Unit tests for src/data.py module.
 """
-import pytest
 from unittest.mock import patch, MagicMock
 import pandas as pd
 import numpy as np
@@ -135,9 +134,7 @@ class TestFetchStockData:
         
         mock_ticker.history.return_value = mock_hist
         mock_ticker_class.return_value = mock_ticker
-        
-        df = fetch_stock_data('AAPL', days=30)
-        
+                
         # Verify the history method was called with correct parameters
         mock_ticker.history.assert_called()
         

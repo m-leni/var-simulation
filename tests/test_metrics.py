@@ -10,10 +10,8 @@ from src.metrics import (
     parametric_var,
     portfolio_var,
     calculate_portfolio_returns,
-    weighted_moving_average,
-    exponential_weighted_moving_average,
-    calculate_cumulative_yield,
-    forward_pe_ratio
+    forward_pe_ratio,
+    calculate_cumulative_yield
 )
 
 
@@ -218,65 +216,6 @@ class TestPortfolioVaR:
         with pytest.raises(ValueError, match="method must be either 'historical' or 'parametric'"):
             portfolio_var(returns, weights, 0.95, 10000, method='invalid')
 
-
-class TestWeightedMovingAverage:
-    """Tests for weighted_moving_average function."""
-    
-    def test_basic_calculation(self, sample_prices):
-        """Test basic WMA calculation."""
-        wma = weighted_moving_average(sample_prices, window=3)
-        assert isinstance(wma, pd.Series)
-        assert len(wma) == len(sample_prices)
-        
-    def test_with_custom_weights(self, sample_prices):
-        """Test with custom weights."""
-        custom_weights = [0.5, 0.3, 0.2]
-        wma = weighted_moving_average(sample_prices, window=3, weights=custom_weights)
-        assert isinstance(wma, pd.Series)
-        
-    def test_window_size_validation(self, sample_prices):
-        """Test error for invalid window size."""
-        with pytest.raises(ValueError, match="Window size must be at least 1"):
-            weighted_moving_average(sample_prices, window=0)
-            
-    def test_weights_length_mismatch(self, sample_prices):
-        """Test error when weights length doesn't match window."""
-        with pytest.raises(ValueError, match="Length of weights .* must match window size"):
-            weighted_moving_average(sample_prices, window=3, weights=[0.5, 0.5])
-            
-    def test_with_numpy_array(self):
-        """Test with numpy array input."""
-        data = np.array([1, 2, 3, 4, 5])
-        wma = weighted_moving_average(data, window=3)
-        assert isinstance(wma, pd.Series)
-
-
-class TestExponentialWeightedMovingAverage:
-    """Tests for exponential_weighted_moving_average function."""
-    
-    def test_basic_calculation(self, sample_prices):
-        """Test basic EWMA calculation."""
-        ewma = exponential_weighted_moving_average(sample_prices, window=5)
-        assert isinstance(ewma, pd.Series)
-        assert len(ewma) == len(sample_prices)
-        
-    def test_with_custom_alpha(self, sample_prices):
-        """Test with custom alpha."""
-        ewma = exponential_weighted_moving_average(sample_prices, window=5, alpha=0.3)
-        assert isinstance(ewma, pd.Series)
-        
-    def test_alpha_validation(self, sample_prices):
-        """Test error for invalid alpha."""
-        with pytest.raises(ValueError, match="Alpha must be between 0 and 1"):
-            exponential_weighted_moving_average(sample_prices, window=5, alpha=1.5)
-            
-        with pytest.raises(ValueError, match="Alpha must be between 0 and 1"):
-            exponential_weighted_moving_average(sample_prices, window=5, alpha=0)
-            
-    def test_window_size_validation(self, sample_prices):
-        """Test error for invalid window size."""
-        with pytest.raises(ValueError, match="Window size must be at least 1"):
-            exponential_weighted_moving_average(sample_prices, window=0)
 
 
 class TestCalculateCumulativeYield:

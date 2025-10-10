@@ -7,7 +7,6 @@ These tests focus on testable utility functions and data processing logic.
 import pytest
 from unittest.mock import patch, MagicMock
 import pandas as pd
-import sqlite3 as sql
 
 # Since streamlit_app.py contains mostly UI code and imports that execute on load,
 # we'll create placeholder tests that can be expanded as the app is refactored

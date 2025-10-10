@@ -6,10 +6,7 @@ import pandas as pd
 import numpy as np
 import sqlite3 as sql
 import json
-import os
 from pathlib import Path
-from datetime import date, timedelta
-from typing import Dict
 
 # Path to test data directory
 TEST_DATA_DIR = Path(__file__).parent / 'data'

@@ -2,20 +2,18 @@
 This module provides functions to fetch stock data from Yahoo Finance API.
 """
 import os
-import ssl
 from bs4 import BeautifulSoup
 
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta, date
-from dateutil.relativedelta import relativedelta
 
 import requests
 import yfinance as yf
 
 from .metrics import calculate_cumulative_yield
 
-from typing import Optional, Union, Dict
+from typing import Optional, Union
 
 def scrape_qqq_holdings() -> pd.DataFrame:
     """
@@ -39,8 +37,7 @@ def scrape_qqq_holdings() -> pd.DataFrame:
         'Connection': 'keep-alive',
     }
     
-    # Create SSL context that doesn't verify certificates
-    context = ssl._create_unverified_context()
+    #context = ssl._create_unverified_context()
     
     # Make the request
     response = requests.get(url, headers=headers, verify=False)
@@ -603,14 +600,12 @@ def get_sp500_tickers(save_locally: bool = False) -> pd.DataFrame:
     Raises:
         ValueError: If unable to fetch or parse the Wikipedia table
     """
-    import ssl
     from bs4 import BeautifulSoup
     
     url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
     
     try:
-        # Create a custom SSL context that doesn't verify certificates
-        context = ssl._create_unverified_context()
+        #context = ssl._create_unverified_context()
         
         # Fetch the page with SSL context
         headers = {
@@ -671,8 +666,8 @@ def get_sp500_tickers(save_locally: bool = False) -> pd.DataFrame:
             if os.path.exists('data/sp500_companies.csv'):
                 print("Warning: Using cached S&P 500 data due to fetch error")
                 return pd.read_csv('data/sp500_companies.csv')
-        except:
-            pass
+        except Exception:
+            print("Warning: Unable to load cached S&P 500 data")
         
         raise ValueError(f"Error fetching S&P 500 companies: {str(e)}")
 

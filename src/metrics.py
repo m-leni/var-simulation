@@ -4,103 +4,10 @@ including weighted moving averages and Value at Risk (VaR).
 """
 import numpy as np
 import pandas as pd
-from typing import Union, Optional, Dict, List
 from scipy import stats
 
-def weighted_moving_average(
-    data: Union[pd.Series, np.ndarray, list],
-    window: int,
-    weights: Optional[Union[pd.Series, np.ndarray, list]] = None
-) -> pd.Series:
-    """
-    Calculate the weighted moving average of a time series.
-    
-    Args:
-        data (Union[pd.Series, np.ndarray, list]): Input time series data
-        window (int): The size of the moving window in days
-        weights (Optional[Union[pd.Series, np.ndarray, list]]): Custom weights for the window.
-            If None, uses linear weights with more weight on recent data.
-            Must be the same length as the window if provided.
-    
-    Returns:
-        pd.Series: Weighted moving average values
-        
-    Raises:
-        ValueError: If window size is invalid or weights don't match window size
-    """
-    if window < 1:
-        raise ValueError("Window size must be at least 1")
-        
-    # Convert input to pandas Series if it isn't already
-    if not isinstance(data, pd.Series):
-        data = pd.Series(data)
-    
-    # If no weights provided, create linear weights (more weight on recent data)
-    if weights is None:
-        weights = np.linspace(1, window, window)
-        weights = weights / weights.sum()  # Normalize weights to sum to 1
-    else:
-        weights = np.array(weights)
-        if len(weights) != window:
-            raise ValueError(f"Length of weights ({len(weights)}) must match window size ({window})")
-        weights = weights / weights.sum()  # Normalize weights to sum to 1
-    
-    # Calculate WMA using convolution
-    wma = data.rolling(window=window).apply(
-        lambda x: np.sum(weights * x[-window:])
-        if len(x) >= window else np.nan
-    )
-    
-    return wma
+from typing import Union, Dict
 
-def exponential_weighted_moving_average(
-    data: Union[pd.Series, np.ndarray, list],
-    window: int,
-    alpha: Optional[float] = None
-) -> pd.Series:
-    """
-    Calculate the exponentially weighted moving average (EWMA) of a time series.
-    
-    Args:
-        data (Union[pd.Series, np.ndarray, list]): Input time series data
-        window (int): The size of the moving window in days
-        alpha (Optional[float]): Smoothing factor between 0 and 1.
-            If None, will be calculated as 2/(window + 1)
-            Higher alpha means more weight on recent data.
-    
-    Returns:
-        pd.Series: Exponentially weighted moving average values
-        
-    Raises:
-        ValueError: If window size is invalid or alpha is not between 0 and 1
-    """
-    if window < 1:
-        raise ValueError("Window size must be at least 1")
-        
-    # Convert input to pandas Series if it isn't already
-    if not isinstance(data, pd.Series):
-        data = pd.Series(data)
-    
-    # Calculate alpha if not provided
-    if alpha is None:
-        alpha = 2 / (window + 1)
-    elif not 0 < alpha <= 1:
-        raise ValueError("Alpha must be between 0 and 1")
-    
-    # Calculate EWMA
-    ewma = data.ewm(
-        span=window,
-        alpha=alpha,
-        adjust=False  # Don't adjust weights to account for missing data
-    ).mean()
-    
-    return ewma
-
-def calculate_returns(
-    prices: Union[pd.Series, np.ndarray, list]) -> np.ndarray:
-    """Calculate log returns from a series of prices."""
-    prices = np.array(prices)
-    return np.log(prices[1:] / prices[:-1])
 
 def calculate_portfolio_returns(
     stock_prices: Dict[str, np.ndarray],
@@ -134,6 +41,7 @@ def calculate_portfolio_returns(
     portfolio_returns = np.dot(returns_matrix, weights)
     
     return portfolio_returns
+
 
 def portfolio_var(
     returns: np.ndarray,
@@ -273,39 +181,6 @@ def parametric_var(
     
     return var_value
 
-
-def portfolio_var(
-    returns: pd.DataFrame,
-    weights: Union[list, np.ndarray],
-    confidence_level: float = 0.95,
-    investment_value: float = 1.0,
-    method: str = 'historical'
-) -> float:
-    """
-    Calculate Value at Risk (VaR) for a portfolio of assets.
-    
-    Args:
-        returns (pd.DataFrame): DataFrame where each column represents asset returns
-        weights (Union[list, np.ndarray]): Portfolio weights for each asset
-        confidence_level (float): Confidence level for VaR calculation (default: 0.95)
-        investment_value (float): Current value of the investment (default: 1.0)
-        method (str): VaR calculation method - 'historical' or 'parametric'
-    
-    Returns:
-        float: Portfolio Value at Risk at the specified confidence level
-    """
-    if len(weights) != returns.shape[1]:
-        raise ValueError("Number of weights must match number of assets")
-        
-    # Calculate portfolio returns
-    portfolio_returns = returns.dot(weights)
-    
-    if method == 'historical':
-        return historical_var(portfolio_returns, confidence_level, investment_value)
-    elif method == 'parametric':
-        return parametric_var(portfolio_returns, confidence_level, investment_value)
-    else:
-        raise ValueError("method must be either 'historical' or 'parametric'")
 
 def calculate_cumulative_yield(
     prices: Union[pd.Series, pd.DataFrame],
