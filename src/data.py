@@ -56,7 +56,7 @@ def scrape_qqq_holdings() -> pd.DataFrame:
     rows = []
     for row in table.find_all('tr'):
         cols = row.find_all('td')
-        if len(cols) >= 3:  # Ensure row has at least Weight, Company Name, and Ticker columns
+        if len(cols) >= 3:  # Ensure row has at least 3 columns: [Weight, Company Name, Ticker] (in this order)
             weight = cols[0].text.strip().rstrip('%')
             company = cols[1].text.strip()
             ticker = cols[2].text.strip()
