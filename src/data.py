@@ -13,7 +13,7 @@ import yfinance as yf
 
 from .metrics import calculate_cumulative_yield
 
-from typing import Optional, Union
+from typing import Optional, Union, Dict
 
 def scrape_qqq_holdings() -> pd.DataFrame:
     """
@@ -56,25 +56,22 @@ def scrape_qqq_holdings() -> pd.DataFrame:
     rows = []
     for row in table.find_all('tr'):
         cols = row.find_all('td')
-        if len(cols) >= 5:  # Ensure row has all expected columns
+        if len(cols) >= 4:  # Ensure row has all expected columns
             weight = cols[0].text.strip().rstrip('%')
             company = cols[1].text.strip()
             ticker = cols[2].text.strip()
-            coupon = cols[3].text.strip()
-            shares = cols[4].text.strip().replace(',', '')
             
             rows.append({
                 'Weight': float(weight) / 100 if weight else None,
                 'Company Name': company,
                 'Ticker': ticker,
-                'Coupon Rate': float(coupon.rstrip('%'))/100 if coupon and coupon != '-' else None,
-                'Shares Held': int(shares) if shares and shares != '-' else None
             })
     
     # Create DataFrame
-    df = pd.DataFrame(rows).drop(columns=['Coupon Rate', 'Shares Held']).reindex(['Ticker', 'Company Name', 'Weight'], axis=1)
+    df = pd.DataFrame(rows).reindex(['Ticker', 'Company Name', 'Weight'], axis=1)
 
     df.to_sql('qqq_holdings_live', if_exists='replace', index=False, con='sqlite:///database.db')
+    df.to_csv('data/qqq_companies_live.csv', index=False)
     
     return df
     
