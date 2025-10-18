@@ -71,7 +71,6 @@ def scrape_qqq_holdings() -> pd.DataFrame:
     df = pd.DataFrame(rows).reindex(['Ticker', 'Company Name', 'Weight'], axis=1)
 
     df.to_sql('qqq_holdings_live', if_exists='replace', index=False, con='sqlite:///database.db')
-    df.to_csv('data/qqq_companies_live.csv', index=False)
     
     return df
     
