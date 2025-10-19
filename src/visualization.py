@@ -300,6 +300,173 @@ def plot_financial_metrics(
     # Return the constructed figure
     return fig
 
+def plot_strategy_comparison(
+    df: pd.DataFrame,
+    signals: pd.DataFrame,
+    strategy1_returns: pd.Series,
+    strategy2_returns: pd.Series,
+    strategy1_name: str = "Strategy 1",
+    strategy2_name: str = "Strategy 2",
+    title: Optional[str] = None,
+    height: int = 1200
+) -> go.Figure:
+    """
+    Create a comprehensive chart comparing two trading strategies.
+    
+    Includes:
+    - Candlestick chart with EMA indicators
+    - BUY/SELL signal markers
+    - Running returns comparison for both strategies
+    
+    Args:
+        df: DataFrame with OHLC data and EMA indicators
+        signals: DataFrame with 'Date' and 'signal' columns
+        strategy1_returns: Series of portfolio values for strategy 1
+        strategy2_returns: Series of portfolio values for strategy 2
+        strategy1_name: Name of first strategy
+        strategy2_name: Name of second strategy
+        title: Chart title
+        height: Height of the figure in pixels
+        
+    Returns:
+        go.Figure: Plotly figure object
+    """
+    # Create subplots: candlestick chart + returns comparison
+    fig = make_subplots(
+        rows=2,
+        cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.08,
+        subplot_titles=['Price Action with Signals', 'Strategy Returns Comparison'],
+        row_heights=[0.6, 0.4]
+    )
+    
+    # Add candlestick chart
+    fig.add_trace(
+        go.Candlestick(
+            x=df['Date'],
+            open=df['Open'],
+            high=df['High'],
+            low=df['Low'],
+            close=df['Close'],
+            name='OHLC',
+            showlegend=True
+        ),
+        row=1, col=1
+    )
+    
+    # Add EMA 50
+    if 'ema50' in df.columns:
+        fig.add_trace(
+            go.Scatter(
+                x=df['Date'],
+                y=df['ema50'],
+                name='EMA 50',
+                line=dict(color='rgba(255, 165, 0, 0.8)', width=2)
+            ),
+            row=1, col=1
+        )
+    
+    # Add EMA 200
+    if 'ema200' in df.columns:
+        fig.add_trace(
+            go.Scatter(
+                x=df['Date'],
+                y=df['ema200'],
+                name='EMA 200',
+                line=dict(color='rgba(46, 139, 87, 0.8)', width=2)
+            ),
+            row=1, col=1
+        )
+    
+    # Add BUY signals
+    buy_signals = signals[signals['signal'] == 'BUY']
+    if not buy_signals.empty:
+        buy_df = df[df['Date'].isin(buy_signals['Date'])]
+        fig.add_trace(
+            go.Scatter(
+                x=buy_df['Date'],
+                y=buy_df['Low'] * 0.98,  # Slightly below the candle
+                mode='markers',
+                name='BUY',
+                marker=dict(
+                    symbol='triangle-up',
+                    size=15,
+                    color='green',
+                    line=dict(width=2, color='darkgreen')
+                ),
+                showlegend=True
+            ),
+            row=1, col=1
+        )
+    
+    # Add SELL signals
+    sell_signals = signals[signals['signal'] == 'SELL']
+    if not sell_signals.empty:
+        sell_df = df[df['Date'].isin(sell_signals['Date'])]
+        fig.add_trace(
+            go.Scatter(
+                x=sell_df['Date'],
+                y=sell_df['High'] * 1.02,  # Slightly above the candle
+                mode='markers',
+                name='SELL',
+                marker=dict(
+                    symbol='triangle-down',
+                    size=15,
+                    color='red',
+                    line=dict(width=2, color='darkred')
+                ),
+                showlegend=True
+            ),
+            row=1, col=1
+        )
+    
+    # Add strategy returns comparison
+    fig.add_trace(
+        go.Scatter(
+            x=strategy1_returns.index,
+            y=strategy1_returns.values,
+            name=strategy1_name,
+            line=dict(color='blue', width=2),
+            showlegend=True
+        ),
+        row=2, col=1
+    )
+    
+    fig.add_trace(
+        go.Scatter(
+            x=strategy2_returns.index,
+            y=strategy2_returns.values,
+            name=strategy2_name,
+            line=dict(color='orange', width=2),
+            showlegend=True
+        ),
+        row=2, col=1
+    )
+    
+    # Update layout
+    fig.update_layout(
+        title=title or 'Strategy Comparison',
+        height=height,
+        template='plotly_white',
+        showlegend=True,
+        xaxis_rangeslider_visible=False,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
+    )
+    
+    # Update axes
+    fig.update_yaxes(title_text="Price", row=1, col=1)
+    fig.update_yaxes(title_text="Portfolio Value ($)", row=2, col=1)
+    fig.update_xaxes(title_text="Date", row=2, col=1)
+    
+    return fig
+
 def save_chart(
     fig: go.Figure,
     filename: str,
