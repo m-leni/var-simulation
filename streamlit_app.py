@@ -275,12 +275,12 @@ elif page == "Stock Analysis":
         with st.spinner("Fetching data..."):
             try:
                 # fetch data if exists in db
-                df = pd.read_sql(f"""
+                df = pd.read_sql("""
                     SELECT * 
                     FROM daily_stock_price 
-                    WHERE Ticker = '{ticker}' 
-                        AND Date BETWEEN DATE('now', '-{days} days') AND DATE('now')
-                """, con=CONN)
+                    WHERE Ticker = ? 
+                        AND Date BETWEEN DATE('now', '-' || ? || ' days') AND DATE('now')
+                """, con=CONN, params=(ticker, days))
 
                 if (df.empty) or (df.Date.min() != date.today()-timedelta(days)):
                     df = fetch_stock_data(
@@ -302,11 +302,11 @@ elif page == "Stock Analysis":
         try:
             with st.spinner("Fetching financial data..."):
                 # fetch data if exists in db
-                financial_df = pd.read_sql(f"""
+                financial_df = pd.read_sql("""
                     SELECT *
                     FROM financial_data
-                    WHERE Ticker = '{ticker}'
-                """, con=CONN)
+                    WHERE Ticker = ?
+                """, con=CONN, params=(ticker,))
 
                 # Fetch historical and forecast data
                 financial_df = financial_statement(ticker)
@@ -715,13 +715,13 @@ elif page == "Strategy Comparison":
                     start_date = end_date - timedelta(days=days)
                     
                     # Check if data exists in database
-                    df = pd.read_sql(f"""
+                    df = pd.read_sql("""
                         SELECT * 
                         FROM daily_stock_price 
-                        WHERE Ticker = '{ticker}' 
-                            AND Date BETWEEN '{start_date}' AND '{end_date}'
+                        WHERE Ticker = ? 
+                            AND Date BETWEEN ? AND ?
                         ORDER BY Date
-                    """, con=CONN)
+                    """, con=CONN, params=(ticker, start_date, end_date))
                     
                     if df.empty or len(df) < days * 0.7:  # If less than 70% of expected data
                         st.info(f"Fetching fresh data for {ticker}...")
@@ -755,13 +755,13 @@ elif page == "Strategy Comparison":
                         comp_ticker = comparison_params.get('ticker', ticker)
                         if comp_ticker != ticker:
                             # Fetch data for the comparison ticker
-                            df_comp = pd.read_sql(f"""
+                            df_comp = pd.read_sql("""
                                 SELECT * 
                                 FROM daily_stock_price 
-                                WHERE Ticker = '{comp_ticker}' 
-                                    AND Date BETWEEN '{start_date}' AND '{end_date}'
+                                WHERE Ticker = ? 
+                                    AND Date BETWEEN ? AND ?
                                 ORDER BY Date
-                            """, con=CONN)
+                            """, con=CONN, params=(comp_ticker, start_date, end_date))
                             
                             if df_comp.empty:
                                 df_comp = fetch_stock_data(comp_ticker, start_date=start_date, end_date=end_date)
@@ -796,13 +796,13 @@ elif page == "Strategy Comparison":
                         baseline_ticker = baseline_params.get('ticker', ticker)
                         if baseline_ticker != ticker:
                             # Fetch data for the baseline ticker
-                            df_base = pd.read_sql(f"""
+                            df_base = pd.read_sql("""
                                 SELECT * 
                                 FROM daily_stock_price 
-                                WHERE Ticker = '{baseline_ticker}' 
-                                    AND Date BETWEEN '{start_date}' AND '{end_date}'
+                                WHERE Ticker = ? 
+                                    AND Date BETWEEN ? AND ?
                                 ORDER BY Date
-                            """, con=CONN)
+                            """, con=CONN, params=(baseline_ticker, start_date, end_date))
                             
                             if df_base.empty:
                                 df_base = fetch_stock_data(baseline_ticker, start_date=start_date, end_date=end_date)
