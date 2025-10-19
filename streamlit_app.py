@@ -16,15 +16,23 @@ from src.data import (
     financial_statement
 )
 from src.data import get_stock_info, scrape_qqq_holdings
-from src.visualization import plot_stock_analysis, plot_financial_metrics
+from src.visualization import plot_stock_analysis, plot_financial_metrics, plot_strategy_comparison
 from src.metrics import (
     calculate_returns,
     portfolio_var
 )
+from src.strategies import (
+    calculate_buy_and_hold_returns,
+    calculate_ema_crossover_signals,
+    calculate_strategy_returns,
+    initialize_default_strategies
+)
 from src.database import (
     create_db,
     insert_to_stock_data,
-    insert_to_financial_data
+    insert_to_financial_data,
+    get_all_strategies,
+    get_strategy_signals
 )
 
 CONN = sql.connect("database.db")
@@ -44,7 +52,7 @@ st.set_page_config(
 # Sidebar for navigation
 page = st.sidebar.selectbox(
     "Choose Analysis",
-    ["Home", "Risk Tolerance Quiz", "S&P 500 & Indexes", "Stock Analysis", "Portfolio VaR"]
+    ["Home", "Risk Tolerance Quiz", "S&P 500 & Indexes", "Stock Analysis", "Portfolio VaR", "Strategy Comparison"]
 )
 
 # Home page
@@ -589,6 +597,304 @@ elif page == "Portfolio VaR":
                 except Exception as e:
                     st.error(f"Error calculating portfolio VaR: {str(e)}")
                     st.stop()
+
+# Strategy Comparison page
+elif page == "Strategy Comparison":
+    st.title("📊 Trading Strategy Comparison")
+    
+    st.write("""
+    Compare the performance of different trading strategies over time.
+    See daily candles with BUY/SELL signals, EMA indicators, and cumulative returns.
+    """)
+    
+    # Initialize default strategies if database is empty
+    try:
+        strategies_df = get_all_strategies(CONN)
+        if strategies_df.empty:
+            with st.spinner("Initializing default strategies..."):
+                initialize_default_strategies(CONN)
+                strategies_df = get_all_strategies(CONN)
+    except Exception as e:
+        st.error(f"Error loading strategies: {str(e)}")
+        strategies_df = pd.DataFrame()
+    
+    # Strategy selection
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Baseline Strategy")
+        if not strategies_df.empty:
+            baseline_options = strategies_df['name'].tolist()
+            baseline_strategy = st.selectbox(
+                "Select baseline strategy:",
+                options=baseline_options,
+                index=0 if "Buy and Hold S&P 500" in baseline_options else 0,
+                key="baseline_strategy"
+            )
+        else:
+            st.warning("No strategies available. Please add strategies first.")
+            baseline_strategy = None
+    
+    with col2:
+        st.subheader("Comparison Strategy")
+        if not strategies_df.empty:
+            comparison_options = strategies_df['name'].tolist()
+            comparison_strategy = st.selectbox(
+                "Select comparison strategy:",
+                options=comparison_options,
+                index=1 if len(comparison_options) > 1 else 0,
+                key="comparison_strategy"
+            )
+        else:
+            st.warning("No strategies available. Please add strategies first.")
+            comparison_strategy = None
+    
+    # Stock selection for signal-based strategies
+    st.subheader("Analysis Parameters")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        ticker = st.text_input("Stock Ticker:", value="AAPL", help="Ticker to analyze for signal-based strategies")
+    
+    with col2:
+        days = st.number_input(
+            "Historical Days:",
+            min_value=200,
+            max_value=1000,
+            value=500,
+            step=50,
+            help="Number of days of historical data (min 200 for EMAs)"
+        )
+    
+    with col3:
+        initial_capital = st.number_input(
+            "Initial Capital ($):",
+            min_value=1000,
+            max_value=1000000,
+            value=10000,
+            step=1000
+        )
+    
+    if st.button("Compare Strategies", type="primary"):
+        if baseline_strategy and comparison_strategy:
+            with st.spinner("Calculating strategy returns..."):
+                try:
+                    import json
+                    
+                    # Get strategy details
+                    baseline_row = strategies_df[strategies_df['name'] == baseline_strategy].iloc[0]
+                    comparison_row = strategies_df[strategies_df['name'] == comparison_strategy].iloc[0]
+                    
+                    # Parse parameters
+                    baseline_params = json.loads(baseline_row['parameters'])
+                    comparison_params = json.loads(comparison_row['parameters'])
+                    
+                    # Fetch stock data for the ticker
+                    end_date = date.today()
+                    start_date = end_date - timedelta(days=days)
+                    
+                    # Check if data exists in database
+                    df = pd.read_sql(f"""
+                        SELECT * 
+                        FROM daily_stock_price 
+                        WHERE Ticker = '{ticker}' 
+                            AND Date BETWEEN '{start_date}' AND '{end_date}'
+                        ORDER BY Date
+                    """, con=CONN)
+                    
+                    if df.empty or len(df) < days * 0.7:  # If less than 70% of expected data
+                        st.info(f"Fetching fresh data for {ticker}...")
+                        df = fetch_stock_data(ticker, start_date=start_date, end_date=end_date)
+                        insert_to_stock_data(df, CONN)
+                    
+                    if len(df) < 200:
+                        st.error(f"Insufficient data for {ticker}. Need at least 200 days for EMA calculations.")
+                        st.stop()
+                    
+                    # Calculate signals for comparison strategy if it's EMA-based
+                    if comparison_row['strategy_type'] == 'ema_crossover':
+                        df_with_signals = calculate_ema_crossover_signals(df)
+                        signals_df = df_with_signals[df_with_signals['signal'].isin(['BUY', 'SELL'])][['Date', 'signal', 'Close']]
+                        signals_df = signals_df.rename(columns={'Close': 'price'})
+                        signals_df['ticker'] = ticker
+                        
+                        # Calculate strategy returns
+                        comparison_returns = calculate_strategy_returns(
+                            df, 
+                            signals_df, 
+                            initial_capital=initial_capital
+                        )
+                    else:
+                        # Buy and hold for comparison
+                        df_with_signals = df.copy()
+                        df_with_signals['signal'] = 'HOLD'
+                        signals_df = pd.DataFrame()
+                        
+                        # Use the ticker from comparison strategy params if buy_and_hold
+                        comp_ticker = comparison_params.get('ticker', ticker)
+                        if comp_ticker != ticker:
+                            # Fetch data for the comparison ticker
+                            df_comp = pd.read_sql(f"""
+                                SELECT * 
+                                FROM daily_stock_price 
+                                WHERE Ticker = '{comp_ticker}' 
+                                    AND Date BETWEEN '{start_date}' AND '{end_date}'
+                                ORDER BY Date
+                            """, con=CONN)
+                            
+                            if df_comp.empty:
+                                df_comp = fetch_stock_data(comp_ticker, start_date=start_date, end_date=end_date)
+                                insert_to_stock_data(df_comp, CONN)
+                            
+                            comparison_returns = calculate_buy_and_hold_returns(
+                                df_comp['Close'], 
+                                initial_capital=initial_capital
+                            )
+                            comparison_returns.index = df_comp['Date']
+                        else:
+                            comparison_returns = calculate_buy_and_hold_returns(
+                                df['Close'], 
+                                initial_capital=initial_capital
+                            )
+                            comparison_returns.index = df['Date']
+                    
+                    # Calculate baseline strategy returns
+                    if baseline_row['strategy_type'] == 'ema_crossover':
+                        baseline_signals_df = calculate_ema_crossover_signals(df)
+                        baseline_sigs = baseline_signals_df[baseline_signals_df['signal'].isin(['BUY', 'SELL'])][['Date', 'signal', 'Close']]
+                        baseline_sigs = baseline_sigs.rename(columns={'Close': 'price'})
+                        baseline_sigs['ticker'] = ticker
+                        
+                        baseline_returns = calculate_strategy_returns(
+                            df,
+                            baseline_sigs,
+                            initial_capital=initial_capital
+                        )
+                    else:
+                        # Buy and hold baseline
+                        baseline_ticker = baseline_params.get('ticker', ticker)
+                        if baseline_ticker != ticker:
+                            # Fetch data for the baseline ticker
+                            df_base = pd.read_sql(f"""
+                                SELECT * 
+                                FROM daily_stock_price 
+                                WHERE Ticker = '{baseline_ticker}' 
+                                    AND Date BETWEEN '{start_date}' AND '{end_date}'
+                                ORDER BY Date
+                            """, con=CONN)
+                            
+                            if df_base.empty:
+                                df_base = fetch_stock_data(baseline_ticker, start_date=start_date, end_date=end_date)
+                                insert_to_stock_data(df_base, CONN)
+                            
+                            baseline_returns = calculate_buy_and_hold_returns(
+                                df_base['Close'],
+                                initial_capital=initial_capital
+                            )
+                            baseline_returns.index = df_base['Date']
+                        else:
+                            baseline_returns = calculate_buy_and_hold_returns(
+                                df['Close'],
+                                initial_capital=initial_capital
+                            )
+                            baseline_returns.index = df['Date']
+                    
+                    # Display metrics
+                    st.subheader("Performance Metrics")
+                    
+                    baseline_return_pct = ((baseline_returns.iloc[-1] - initial_capital) / initial_capital) * 100
+                    comparison_return_pct = ((comparison_returns.iloc[-1] - initial_capital) / initial_capital) * 100
+                    
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.metric(
+                            f"{baseline_strategy}",
+                            f"${baseline_returns.iloc[-1]:,.2f}",
+                            delta=f"{baseline_return_pct:.2f}%"
+                        )
+                    
+                    with col2:
+                        st.metric(
+                            f"{comparison_strategy}",
+                            f"${comparison_returns.iloc[-1]:,.2f}",
+                            delta=f"{comparison_return_pct:.2f}%"
+                        )
+                    
+                    with col3:
+                        outperformance = comparison_return_pct - baseline_return_pct
+                        st.metric(
+                            "Outperformance",
+                            f"{outperformance:.2f}%",
+                            delta=f"{outperformance:.2f}%"
+                        )
+                    
+                    # Create visualization
+                    st.subheader("Strategy Comparison Chart")
+                    
+                    # Use the signals from the comparison strategy for visualization
+                    if comparison_row['strategy_type'] == 'ema_crossover':
+                        viz_signals = signals_df
+                    else:
+                        viz_signals = pd.DataFrame(columns=['Date', 'signal', 'price', 'ticker'])
+                    
+                    fig = plot_strategy_comparison(
+                        df=df,
+                        signals=viz_signals,
+                        strategy1_returns=baseline_returns,
+                        strategy2_returns=comparison_returns,
+                        strategy1_name=baseline_strategy,
+                        strategy2_name=comparison_strategy,
+                        title=f"Strategy Comparison: {ticker}"
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Additional insights
+                    st.subheader("Strategy Details")
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.write(f"**{baseline_strategy}**")
+                        st.write(f"Type: {baseline_row['strategy_type']}")
+                        st.write(f"Description: {baseline_row['description']}")
+                        
+                    with col2:
+                        st.write(f"**{comparison_strategy}**")
+                        st.write(f"Type: {comparison_row['strategy_type']}")
+                        st.write(f"Description: {comparison_row['description']}")
+                    
+                    # Show signal summary if applicable
+                    if not viz_signals.empty:
+                        st.subheader("Trading Signals Summary")
+                        buy_count = len(viz_signals[viz_signals['signal'] == 'BUY'])
+                        sell_count = len(viz_signals[viz_signals['signal'] == 'SELL'])
+                        
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Total BUY Signals", buy_count)
+                        with col2:
+                            st.metric("Total SELL Signals", sell_count)
+                        with col3:
+                            st.metric("Total Trades", buy_count + sell_count)
+                        
+                        # Show recent signals
+                        if len(viz_signals) > 0:
+                            st.write("**Recent Signals:**")
+                            recent_signals = viz_signals.tail(10).sort_values('Date', ascending=False)
+                            st.dataframe(
+                                recent_signals[['Date', 'signal', 'price']],
+                                hide_index=True,
+                                use_container_width=True
+                            )
+                    
+                except Exception as e:
+                    st.error(f"Error comparing strategies: {str(e)}")
+                    import traceback
+                    st.code(traceback.format_exc())
+        else:
+            st.warning("Please select both baseline and comparison strategies.")
 
 # Risk Tolerance Quiz page
 elif page == "Risk Tolerance Quiz":

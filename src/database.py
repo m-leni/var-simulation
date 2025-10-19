@@ -40,6 +40,32 @@ def create_db(conn: sql.Connection):
         )
         conn.commit()
 
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS trading_strategies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                description TEXT,
+                strategy_type TEXT NOT NULL,
+                parameters TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )"""
+        )
+        conn.commit()
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS strategy_signals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                strategy_id INTEGER NOT NULL,
+                ticker TEXT NOT NULL,
+                date DATE NOT NULL,
+                signal TEXT NOT NULL,
+                price FLOAT,
+                FOREIGN KEY (strategy_id) REFERENCES trading_strategies(id),
+                UNIQUE(strategy_id, ticker, date)
+            )"""
+        )
+        conn.commit()
+
 def insert_to_stock_data(
         df: pd.DataFrame,
         conn: sql.Connection, 
@@ -85,6 +111,76 @@ def insert_to_financial_data(
             if_exists='append', 
             index=False
         )
+
+def insert_strategy(
+    name: str,
+    description: str,
+    strategy_type: str,
+    parameters: str,
+    conn: sql.Connection
+):
+    """Insert a new trading strategy into the database."""
+    with conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT OR REPLACE INTO trading_strategies 
+            (name, description, strategy_type, parameters)
+            VALUES (?, ?, ?, ?)
+        """, (name, description, strategy_type, parameters))
+        conn.commit()
+        return cursor.lastrowid
+
+def insert_strategy_signals(
+    strategy_id: int,
+    signals_df: pd.DataFrame,
+    conn: sql.Connection
+):
+    """Insert strategy signals into the database.
+    
+    Args:
+        strategy_id: ID of the strategy
+        signals_df: DataFrame with columns: ticker, date, signal, price
+        conn: Database connection
+    """
+    signals_df = signals_df.copy()
+    signals_df['strategy_id'] = strategy_id
+    
+    with conn:
+        # Delete existing signals for this strategy
+        cursor = conn.cursor()
+        cursor.execute("""
+            DELETE FROM strategy_signals 
+            WHERE strategy_id = ?
+        """, (strategy_id,))
+        conn.commit()
+        
+        # Insert new signals
+        signals_df[['strategy_id', 'ticker', 'date', 'signal', 'price']].to_sql(
+            'strategy_signals',
+            conn,
+            if_exists='append',
+            index=False
+        )
+
+def get_all_strategies(conn: sql.Connection) -> pd.DataFrame:
+    """Retrieve all trading strategies from database."""
+    return pd.read_sql("""
+        SELECT id, name, description, strategy_type, parameters 
+        FROM trading_strategies
+    """, conn)
+
+def get_strategy_signals(
+    strategy_id: int,
+    ticker: str,
+    conn: sql.Connection
+) -> pd.DataFrame:
+    """Retrieve signals for a specific strategy and ticker."""
+    return pd.read_sql("""
+        SELECT date, signal, price
+        FROM strategy_signals
+        WHERE strategy_id = ? AND ticker = ?
+        ORDER BY date
+    """, conn, params=(strategy_id, ticker))
 
 if __name__ == "__main__":
     create_db()
