@@ -39,7 +39,18 @@ CONN = sql.connect("database.db")
 
 create_db(conn=CONN)
 
-qqq = scrape_qqq_holdings()
+# Try to scrape QQQ holdings, but don't fail if it's not available
+try:
+    qqq = scrape_qqq_holdings()
+except Exception as e:
+    # Load from cached file if available
+    try:
+        qqq = pd.read_csv('data/qqq_companies.csv')
+        qqq['Weight'] = qqq['Index Weight'].str.rstrip('%').astype('float') / 100.0
+    except:
+        # Create empty dataframe if no cached data
+        qqq = pd.DataFrame(columns=['Ticker', 'Company Name', 'Weight'])
+
 sp500 = pd.read_csv('data/sp500_caps.csv')
 
 # Page config
