@@ -1,6 +1,7 @@
 """
 Streamlit frontend for VaR simulation and stock analysis.
 """
+import os
 import numpy as np
 import pandas as pd
 from datetime import date, timedelta
@@ -8,6 +9,7 @@ import matplotlib.pyplot as plt
 
 import sqlite3 as sql
 import streamlit as st
+import requests
 
 from src.params import RISK_TOLERANCE_QUESTIONS
 
@@ -42,13 +44,21 @@ create_db(conn=CONN)
 # Try to scrape QQQ holdings, but don't fail if it's not available
 try:
     qqq = scrape_qqq_holdings()
-except Exception as e:
+except (requests.exceptions.RequestException, ConnectionError, ValueError) as e:
     # Load from cached file if available
     try:
-        qqq = pd.read_csv('data/qqq_companies.csv')
-        qqq['Weight'] = qqq['Index Weight'].str.rstrip('%').astype('float') / 100.0
-    except:
-        # Create empty dataframe if no cached data
+        if os.path.exists('data/qqq_companies.csv'):
+            qqq = pd.read_csv('data/qqq_companies.csv')
+            # Safely handle the Weight column transformation
+            if 'Index Weight' in qqq.columns:
+                qqq['Weight'] = qqq['Index Weight'].str.rstrip('%').astype('float') / 100.0
+            elif 'Weight' not in qqq.columns:
+                qqq['Weight'] = 0.0
+        else:
+            # Create empty dataframe if no cached data
+            qqq = pd.DataFrame(columns=['Ticker', 'Company Name', 'Weight'])
+    except (FileNotFoundError, pd.errors.EmptyDataError, pd.errors.ParserError) as parse_error:
+        # Create empty dataframe if parsing fails
         qqq = pd.DataFrame(columns=['Ticker', 'Company Name', 'Weight'])
 
 sp500 = pd.read_csv('data/sp500_caps.csv')
