@@ -134,9 +134,9 @@ def fetch_financial_data(
         df = df_transposed.reindex(columns=expected_columns).T
 
         # Convert to billions (except Basic EPS)
-        for col in df.columns:
-            if col != 'Basic EPS':
-                df.loc[expected_columns[:-1]] = df.loc[expected_columns[:-1]] / 1e9
+        # Apply conversion to all rows except Basic EPS
+        rows_to_convert = [col for col in expected_columns if col != 'Basic EPS']
+        df.loc[rows_to_convert] = df.loc[rows_to_convert] / 1e9
         
         if df.empty:
             raise ValueError(f"No financial data found for ticker {ticker}")        
