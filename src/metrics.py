@@ -49,7 +49,7 @@ def portfolio_var(
     confidence_level: float = 0.95,
     investment_value: float = 100000.0,
     method: str = "historical"
-) -> Dict[str, float]:
+) -> float:
     """
     Calculate portfolio Value at Risk (VaR) using either historical or parametric method.
     
@@ -61,8 +61,12 @@ def portfolio_var(
         method (str): VaR calculation method ('historical' or 'parametric')
     
     Returns:
-        Dict[str, float]: Dictionary containing VaR and other risk metrics
+        float: Portfolio Value at Risk at the specified confidence level
     """
+    # Validate method parameter
+    if method not in ["historical", "parametric"]:
+        raise ValueError("method must be either 'historical' or 'parametric'")
+    
     # Calculate portfolio returns
     portfolio_returns = np.dot(returns, weights)
     
@@ -72,19 +76,7 @@ def portfolio_var(
     else:  # parametric
         var = parametric_var(portfolio_returns, confidence_level, investment_value)
     
-    # Calculate additional risk metrics
-    portfolio_std = np.std(portfolio_returns, ddof=1)
-    portfolio_mean = np.mean(portfolio_returns)
-    sharpe_ratio = (portfolio_mean / portfolio_std) * np.sqrt(252)  # Annualized
-    
-    return {
-        "var": var,
-        "daily_volatility": portfolio_std,
-        "annualized_volatility": portfolio_std * np.sqrt(252),
-        "expected_return": portfolio_mean,
-        "annualized_return": portfolio_mean * 252,
-        "sharpe_ratio": sharpe_ratio
-    }
+    return var
 
 
 def calculate_returns(
