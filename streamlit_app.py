@@ -247,12 +247,12 @@ elif page == "Stock Analysis":
         with st.spinner("Fetching data..."):
             try:
                 # fetch data if exists in db
-                df = pd.read_sql(f"""
+                df = pd.read_sql("""
                     SELECT * 
                     FROM daily_stock_price 
-                    WHERE Ticker = '{ticker}' 
-                        AND Date BETWEEN DATE('now', '-{days} days') AND DATE('now')
-                """, con=CONN)
+                    WHERE Ticker = ? 
+                        AND Date BETWEEN DATE('now', '-' || ? || ' days') AND DATE('now')
+                """, con=CONN, params=(ticker, days))
 
                 if (df.empty) or (df.Date.min() != date.today()-timedelta(days)):
                     df = fetch_stock_data(
@@ -282,11 +282,11 @@ elif page == "Stock Analysis":
             try:
                 with st.spinner("Fetching financial data..."):
                     # fetch data if exists in db
-                    financial_df = pd.read_sql(f"""
+                    financial_df = pd.read_sql("""
                         SELECT *
                         FROM financial_data
-                        WHERE Ticker = '{ticker}'
-                    """, con=CONN)
+                        WHERE Ticker = ?
+                    """, con=CONN, params=(ticker,))
 
                     # Fetch historical and forecast data
                     financial_df = financial_statement(ticker)
