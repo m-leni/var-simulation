@@ -12,7 +12,9 @@ from src.data import (
     fetch_analyst_earnings_forecast,
     fetch_analyst_revenue_forecast,
     fetch_analyst_growth_estimates,
-    get_forward_pe_data
+    get_forward_pe_data,
+    is_etf_or_index,
+    fetch_financial_data
 )
 
 
@@ -485,3 +487,139 @@ class TestAnalystForecasts:
         assert data['current_price'] == 150.0
         assert data['forward_eps'] == 6.5
         assert data['forward_pe'] == 23.08
+
+
+class TestFinancialDataHandling:
+    """Tests for financial data fetching with missing columns."""
+    
+    @patch('src.data.yf.Ticker')
+    def test_fetch_financial_data_with_all_columns(self, mock_ticker_class):
+        """Test fetching financial data when all columns are present."""
+        from src.data import fetch_financial_data
+        
+        mock_ticker = MagicMock()
+        
+        # Create mock financial data with all expected columns
+        dates = pd.date_range(start='2020-12-31', periods=4, freq='Y')
+        mock_financials = pd.DataFrame({
+            'Total Revenue': [100e9, 110e9, 120e9, 130e9],
+            'Total Expenses': [80e9, 85e9, 90e9, 95e9],
+            'Gross Profit': [40e9, 45e9, 50e9, 55e9],
+            'EBITDA': [30e9, 35e9, 40e9, 45e9],
+            'Basic EPS': [5.0, 5.5, 6.0, 6.5]
+        }, index=dates)
+        
+        mock_cashflow = pd.DataFrame({
+            'Free Cash Flow': [20e9, 22e9, 24e9, 26e9],
+            'Common Stock Dividend Paid': [-5e9, -5.5e9, -6e9, -6.5e9]
+        }, index=dates)
+        
+        mock_ticker.financials = mock_financials.T
+        mock_ticker.cashflow = mock_cashflow.T
+        mock_ticker_class.return_value = mock_ticker
+        
+        df = fetch_financial_data('AAPL')
+        
+        assert isinstance(df, pd.DataFrame)
+        assert 'Total Revenue' in df.index
+        assert 'Common Stock Dividend Paid' in df.index
+        assert len(df.columns) == 4  # 4 years
+    
+    @patch('src.data.yf.Ticker')
+    def test_fetch_financial_data_with_missing_columns(self, mock_ticker_class):
+        """Test fetching financial data when some columns are missing."""
+        from src.data import fetch_financial_data
+        import warnings
+        
+        mock_ticker = MagicMock()
+        
+        # Create mock financial data WITHOUT Common Stock Dividend Paid
+        dates = pd.date_range(start='2020-12-31', periods=4, freq='Y')
+        mock_financials = pd.DataFrame({
+            'Total Revenue': [100e9, 110e9, 120e9, 130e9],
+            'Total Expenses': [80e9, 85e9, 90e9, 95e9],
+            'Gross Profit': [40e9, 45e9, 50e9, 55e9],
+            'EBITDA': [30e9, 35e9, 40e9, 45e9],
+            'Basic EPS': [5.0, 5.5, 6.0, 6.5]
+        }, index=dates)
+        
+        mock_cashflow = pd.DataFrame({
+            'Free Cash Flow': [20e9, 22e9, 24e9, 26e9],
+            # Missing: 'Common Stock Dividend Paid'
+        }, index=dates)
+        
+        mock_ticker.financials = mock_financials.T
+        mock_ticker.cashflow = mock_cashflow.T
+        mock_ticker_class.return_value = mock_ticker
+        
+        # Should not raise an error, but should warn
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            df = fetch_financial_data('QQQ')
+            
+            # Check that a warning was issued
+            assert len(w) >= 1
+            assert "missing columns" in str(w[0].message).lower()
+        
+        assert isinstance(df, pd.DataFrame)
+        assert 'Common Stock Dividend Paid' in df.index  # Should exist but with NaN values
+        assert pd.isna(df.loc['Common Stock Dividend Paid']).all()  # All values should be NaN
+    
+    @patch('src.data.yf.Ticker')
+    def test_is_etf_or_index_etf(self, mock_ticker_class):
+        """Test identifying an ETF."""
+        from src.data import is_etf_or_index
+        
+        mock_ticker = MagicMock()
+        mock_ticker.info = {
+            'quoteType': 'ETF',
+            'symbol': 'QQQ'
+        }
+        mock_ticker_class.return_value = mock_ticker
+        
+        result = is_etf_or_index('QQQ')
+        assert result is True
+    
+    @patch('src.data.yf.Ticker')
+    def test_is_etf_or_index_stock(self, mock_ticker_class):
+        """Test identifying a regular stock."""
+        from src.data import is_etf_or_index
+        
+        mock_ticker = MagicMock()
+        mock_ticker.info = {
+            'quoteType': 'EQUITY',
+            'symbol': 'AAPL'
+        }
+        mock_ticker_class.return_value = mock_ticker
+        
+        result = is_etf_or_index('AAPL')
+        assert result is False
+    
+    @patch('src.data.yf.Ticker')
+    def test_is_etf_or_index_with_category(self, mock_ticker_class):
+        """Test identifying ETF using category field."""
+        from src.data import is_etf_or_index
+        
+        mock_ticker = MagicMock()
+        mock_ticker.info = {
+            'quoteType': 'EQUITY',
+            'symbol': 'GLD',
+            'category': 'Commodities Precious Metals'
+        }
+        mock_ticker_class.return_value = mock_ticker
+        
+        result = is_etf_or_index('GLD')
+        assert result is True
+    
+    @patch('src.data.yf.Ticker')
+    def test_is_etf_or_index_error_handling(self, mock_ticker_class):
+        """Test error handling in is_etf_or_index."""
+        from src.data import is_etf_or_index
+        
+        mock_ticker = MagicMock()
+        mock_ticker.info.side_effect = Exception("API error")
+        mock_ticker_class.return_value = mock_ticker
+        
+        # Should not raise an error, should return False as fallback
+        result = is_etf_or_index('INVALID')
+        assert result is False

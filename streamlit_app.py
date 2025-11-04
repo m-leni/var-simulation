@@ -13,7 +13,8 @@ from src.params import RISK_TOLERANCE_QUESTIONS
 
 from src.data import (
     fetch_stock_data,
-    financial_statement
+    financial_statement,
+    is_etf_or_index
 )
 from src.data import get_stock_info, scrape_qqq_holdings
 from src.visualization import plot_stock_analysis, plot_financial_metrics
@@ -270,99 +271,104 @@ elif page == "Stock Analysis":
         # Financial Analysis Section
         st.subheader("Financial Analysis")
         
-        try:
-            with st.spinner("Fetching financial data..."):
-                # fetch data if exists in db
-                financial_df = pd.read_sql(f"""
-                    SELECT *
-                    FROM financial_data
-                    WHERE Ticker = '{ticker}'
-                """, con=CONN)
+        # Check if ticker is an ETF or index
+        if is_etf_or_index(ticker):
+            st.info(f"⚠️ {ticker} is an ETF or index fund. Financial statement analysis is not applicable for ETFs/indexes as they don't report earnings, expenses, or traditional financial statements.")
+        else:
+            try:
+                with st.spinner("Fetching financial data..."):
+                    # fetch data if exists in db
+                    financial_df = pd.read_sql(f"""
+                        SELECT *
+                        FROM financial_data
+                        WHERE Ticker = '{ticker}'
+                    """, con=CONN)
 
-                # Fetch historical and forecast data
-                financial_df = financial_statement(ticker)
+                    # Fetch historical and forecast data
+                    financial_df = financial_statement(ticker)
 
-                insert_to_financial_data(financial_df, ticker, CONN)
+                    insert_to_financial_data(financial_df, ticker, CONN)
 
-                financial_df.set_index('Year', inplace=True)
-                financial_df.drop(columns=['Ticker'], inplace=True)
-                        
-                # Display the financial data
-                st.write("Financial Metrics (in BUSD)")
-                st.dataframe(
-                    financial_df
-                        #.style.format(':.2f', precision=2)
-                        .style.background_gradient(cmap='RdYlGn', axis=0)
-                )
-                
-                # Add some key insights
-                st.write("### Key Insights")
-                financial_df.reset_index(inplace=True)
-                
-                # Calculate year-over-year growth between the last two available years
-                if 'Year' in financial_df.columns and len(financial_df) >= 2:
-                    dfy = financial_df.copy()
-                    dfy['Year'] = pd.to_numeric(dfy['Year'], errors='coerce')
-                    dfy = dfy.dropna(subset=['Year']).sort_values('Year').reset_index(drop=True)
-                    if len(dfy) >= 2:
-                        prev = dfy.iloc[-2]
-                        last = dfy.iloc[-1]
-                        prev_year = int(prev['Year'])
-                        last_year = int(last['Year'])
+                    financial_df.set_index('Year', inplace=True)
+                    financial_df.drop(columns=['Ticker'], inplace=True)
+                            
+                    # Display the financial data
+                    st.write("Financial Metrics (in BUSD)")
+                    st.dataframe(
+                        financial_df
+                            #.style.format(':.2f', precision=2)
+                            .style.background_gradient(cmap='RdYlGn', axis=0)
+                    )
+                    
+                    # Add some key insights
+                    st.write("### Key Insights")
+                    financial_df.reset_index(inplace=True)
+                    
+                    # Calculate year-over-year growth between the last two available years
+                    if 'Year' in financial_df.columns and len(financial_df) >= 2:
+                        dfy = financial_df.copy()
+                        dfy['Year'] = pd.to_numeric(dfy['Year'], errors='coerce')
+                        dfy = dfy.dropna(subset=['Year']).sort_values('Year').reset_index(drop=True)
+                        if len(dfy) >= 2:
+                            prev = dfy.iloc[-2]
+                            last = dfy.iloc[-1]
+                            prev_year = int(prev['Year'])
+                            last_year = int(last['Year'])
 
-                        # Revenue growth
-                        rev_prev = pd.to_numeric(prev.get('Total Revenue', None), errors='coerce')
-                        rev_last = pd.to_numeric(last.get('Total Revenue', None), errors='coerce')
-                        rev_growth = (rev_last / rev_prev - 1) * 100 if pd.notna(rev_prev) and rev_prev != 0 else None
+                            # Revenue growth
+                            rev_prev = pd.to_numeric(prev.get('Total Revenue', None), errors='coerce')
+                            rev_last = pd.to_numeric(last.get('Total Revenue', None), errors='coerce')
+                            rev_growth = (rev_last / rev_prev - 1) * 100 if pd.notna(rev_prev) and rev_prev != 0 else None
 
-                        # EBITDA growth (fallback to Gross Profit if EBITDA missing)
-                        ebitda_prev = pd.to_numeric(prev.get('EBITDA', prev.get('Gross Profit', None)), errors='coerce')
-                        ebitda_last = pd.to_numeric(last.get('EBITDA', last.get('Gross Profit', None)), errors='coerce')
-                        ebitda_growth = (ebitda_last / ebitda_prev - 1) * 100 if pd.notna(ebitda_prev) and ebitda_prev != 0 else None
+                            # EBITDA growth (fallback to Gross Profit if EBITDA missing)
+                            ebitda_prev = pd.to_numeric(prev.get('EBITDA', prev.get('Gross Profit', None)), errors='coerce')
+                            ebitda_last = pd.to_numeric(last.get('EBITDA', last.get('Gross Profit', None)), errors='coerce')
+                            ebitda_growth = (ebitda_last / ebitda_prev - 1) * 100 if pd.notna(ebitda_prev) and ebitda_prev != 0 else None
 
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            if rev_growth is None:
-                                st.metric(f"Revenue {prev_year} → {last_year}", "n/a")
-                            else:
-                                st.metric(
-                                    f"Revenue {prev_year} → {last_year}",
-                                    f"{rev_last:,.2f}",
-                                    delta=f"{rev_growth:.1f}%"
-                                )
-                        with col2:
-                            if ebitda_growth is None:
-                                st.metric(f"EBITDA {prev_year} → {last_year}", "n/a")
-                            else:
-                                st.metric(
-                                    f"EBITDA {prev_year} → {last_year}",
-                                    f"{ebitda_last:,.2f}",
-                                    delta=f"{ebitda_growth:.1f}%"
-                                )
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                if rev_growth is None:
+                                    st.metric(f"Revenue {prev_year} → {last_year}", "n/a")
+                                else:
+                                    st.metric(
+                                        f"Revenue {prev_year} → {last_year}",
+                                        f"{rev_last:,.2f}",
+                                        delta=f"{rev_growth:.1f}%"
+                                    )
+                            with col2:
+                                if ebitda_growth is None:
+                                    st.metric(f"EBITDA {prev_year} → {last_year}", "n/a")
+                                else:
+                                    st.metric(
+                                        f"EBITDA {prev_year} → {last_year}",
+                                        f"{ebitda_last:,.2f}",
+                                        delta=f"{ebitda_growth:.1f}%"
+                                    )
+                        else:
+                            st.info("Not enough yearly financial data to compute Key Insights.")
                     else:
-                        st.info("Not enough yearly financial data to compute Key Insights.")
-                else:
-                    st.info("Financial data not in expected yearly format (missing 'Year' column).")
-                
-                # Add metric visualization
-                st.write("### Metric Evolution")
-                metric = st.selectbox(
-                    "Select metric to visualize:",
-                    ["Total Revenue", "Total Expenses", "Gross Profit", "EBITDA", "Free Cash Flow", "Common Stock Dividend Paid", "Basic EPS"]
-                )
-                
-                show_growth = st.checkbox("Show Year-over-Year Growth", value=True)
-                
-                fig = plot_financial_metrics(
-                    financial_df,
-                    metric,
-                    title=f"{ticker} - {metric} Evolution",
-                    show_growth=show_growth
-                )
-                st.plotly_chart(fig, use_container_width=True)
-        
-        except Exception as e:
-            st.error(f"Error fetching financial data: {str(e)}")
+                        st.info("Financial data not in expected yearly format (missing 'Year' column).")
+                    
+                    # Add metric visualization
+                    st.write("### Metric Evolution")
+                    metric = st.selectbox(
+                        "Select metric to visualize:",
+                        ["Total Revenue", "Total Expenses", "Gross Profit", "EBITDA", "Free Cash Flow", "Common Stock Dividend Paid", "Basic EPS"]
+                    )
+                    
+                    show_growth = st.checkbox("Show Year-over-Year Growth", value=True)
+                    
+                    fig = plot_financial_metrics(
+                        financial_df,
+                        metric,
+                        title=f"{ticker} - {metric} Evolution",
+                        show_growth=show_growth
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            except Exception as e:
+                st.warning(f"⚠️ Could not fetch complete financial data: {str(e)}")
+                st.info("Some financial metrics may be unavailable for this ticker. This is common for certain types of securities.")
 
 
 # Portfolio VaR page
