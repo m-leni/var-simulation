@@ -97,6 +97,8 @@ def fetch_financial_data(
             - NetIncome
             - EPS
     """
+    import warnings
+    
     # Create ticker object
     stock = yf.Ticker(ticker)
     
@@ -105,7 +107,7 @@ def fetch_financial_data(
         df = pd.concat([stock.financials, stock.cashflow], axis=0)
 
         # Rows to keep for fundamental analysis
-        df = df.T[[
+        expected_columns = [
             'Total Revenue', 
             'Total Expenses',
             'Gross Profit', 
@@ -113,12 +115,27 @@ def fetch_financial_data(
             'Free Cash Flow',
             'Common Stock Dividend Paid',
             'Basic EPS'
-        ]].T
+        ]
+        
+        # Reindex to include all expected columns, filling missing ones with NaN
+        df_transposed = df.T
+        available_columns = [col for col in expected_columns if col in df_transposed.columns]
+        missing_columns = [col for col in expected_columns if col not in df_transposed.columns]
+        
+        # Warn about missing columns
+        if missing_columns:
+            warnings.warn(
+                f"Financial data for {ticker} is missing columns: {', '.join(missing_columns)}. "
+                f"These will be filled with NaN values.",
+                UserWarning
+            )
+        
+        # Use reindex to safely get all columns, filling missing ones with NaN
+        df = df_transposed.reindex(columns=expected_columns).T
 
-        # Convert to millions
-        for col in df.columns:
-            if col != 'Basic EPS':
-                df[col] = df[col]/1e9
+        # Convert to billions (except Basic EPS)
+        # Apply conversion to all rows except Basic EPS
+        df.loc[df.index != 'Basic EPS'] = df.loc[df.index != 'Basic EPS'] / 1e9
         
         if df.empty:
             raise ValueError(f"No financial data found for ticker {ticker}")        
@@ -354,6 +371,40 @@ def get_stock_info(ticker: str) -> dict:
         return info
     except Exception as e:
         raise ValueError(f"Error fetching info for ticker {ticker}: {str(e)}")
+
+
+def is_etf_or_index(ticker: str) -> bool:
+    """
+    Check if a ticker is an ETF or index fund.
+    
+    ETFs and index funds typically don't have traditional financial statements
+    like earnings, expenses, or dividends in the same way individual stocks do.
+    
+    Args:
+        ticker (str): The stock ticker symbol (e.g., 'QQQ', 'SPY', 'GLD')
+    
+    Returns:
+        bool: True if ticker is an ETF or index fund, False otherwise
+    """
+    try:
+        stock = yf.Ticker(ticker)
+        info = stock.info
+        
+        # Check quoteType - ETFs typically have quoteType of 'ETF'
+        quote_type = info.get('quoteType', '').upper()
+        if quote_type in ['ETF', 'INDEX']:
+            return True
+        
+        # Additional check: Some ETFs are categorized as 'MUTUALFUND'
+        if quote_type == 'MUTUALFUND':
+            # Further verify by checking if it has a category (typical for funds)
+            if 'category' in info and info['category']:
+                return True
+            
+        return False
+    except Exception:
+        # If we can't determine, assume it's a stock to be safe
+        return False
 
 
 def fetch_analyst_price_targets(ticker: str) -> Dict:

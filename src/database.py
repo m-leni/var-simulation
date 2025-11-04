@@ -50,11 +50,11 @@ def insert_to_stock_data(
 
     with conn:
         cursor = conn.cursor()
-        cursor.execute(f"""
+        cursor.execute("""
             DELETE FROM daily_stock_price 
-            WHERE Ticker = '{ticker}'
-                AND Date BETWEEN '{start_date}' AND '{end_date}'
-        """)
+            WHERE Ticker = ?
+                AND Date BETWEEN ? AND ?
+        """, (ticker, start_date, end_date))
         conn.commit()
 
         df.to_sql(
@@ -73,10 +73,10 @@ def insert_to_financial_data(
 
     with conn:
         cursor = conn.cursor()
-        cursor.execute(f"""
+        cursor.execute("""
             DELETE FROM financial_data 
-            WHERE Ticker = '{ticker}'
-        """)
+            WHERE Ticker = ?
+        """, (ticker,))
         conn.commit()
 
         df.to_sql(
