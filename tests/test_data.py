@@ -4,6 +4,7 @@ Unit tests for src/data.py module.
 from unittest.mock import patch, MagicMock
 import pandas as pd
 import numpy as np
+import warnings
 from datetime import date, timedelta
 from src.data import (
     fetch_stock_data, 
@@ -495,7 +496,6 @@ class TestFinancialDataHandling:
     @patch('src.data.yf.Ticker')
     def test_fetch_financial_data_with_all_columns(self, mock_ticker_class):
         """Test fetching financial data when all columns are present."""
-        from src.data import fetch_financial_data
         
         mock_ticker = MagicMock()
         
@@ -528,8 +528,6 @@ class TestFinancialDataHandling:
     @patch('src.data.yf.Ticker')
     def test_fetch_financial_data_with_missing_columns(self, mock_ticker_class):
         """Test fetching financial data when some columns are missing."""
-        from src.data import fetch_financial_data
-        import warnings
         
         mock_ticker = MagicMock()
         
@@ -568,7 +566,6 @@ class TestFinancialDataHandling:
     @patch('src.data.yf.Ticker')
     def test_is_etf_or_index_etf(self, mock_ticker_class):
         """Test identifying an ETF."""
-        from src.data import is_etf_or_index
         
         mock_ticker = MagicMock()
         mock_ticker.info = {
@@ -583,7 +580,6 @@ class TestFinancialDataHandling:
     @patch('src.data.yf.Ticker')
     def test_is_etf_or_index_stock(self, mock_ticker_class):
         """Test identifying a regular stock."""
-        from src.data import is_etf_or_index
         
         mock_ticker = MagicMock()
         mock_ticker.info = {
@@ -598,7 +594,6 @@ class TestFinancialDataHandling:
     @patch('src.data.yf.Ticker')
     def test_is_etf_or_index_with_mutual_fund(self, mock_ticker_class):
         """Test identifying mutual fund with category field."""
-        from src.data import is_etf_or_index
         
         mock_ticker = MagicMock()
         mock_ticker.info = {
@@ -614,7 +609,6 @@ class TestFinancialDataHandling:
     @patch('src.data.yf.Ticker')
     def test_is_etf_or_index_stock_with_no_category(self, mock_ticker_class):
         """Test that regular stocks without category are not identified as ETFs."""
-        from src.data import is_etf_or_index
         
         mock_ticker = MagicMock()
         mock_ticker.info = {
@@ -630,7 +624,6 @@ class TestFinancialDataHandling:
     @patch('src.data.yf.Ticker')
     def test_is_etf_or_index_error_handling(self, mock_ticker_class):
         """Test error handling in is_etf_or_index."""
-        from src.data import is_etf_or_index
         
         mock_ticker = MagicMock()
         mock_ticker.info.side_effect = Exception("API error")
