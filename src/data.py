@@ -56,7 +56,7 @@ def scrape_qqq_holdings() -> pd.DataFrame:
     rows = []
     for row in table.find_all('tr'):
         cols = row.find_all('td')
-        if len(cols) >= 4:  # Ensure row has all expected columns
+        if len(cols) >= 3:  # Ensure row has at least 3 columns: [Weight, Company Name, Ticker] (in this order)
             weight = cols[0].text.strip().rstrip('%')
             company = cols[1].text.strip()
             ticker = cols[2].text.strip()
@@ -71,7 +71,6 @@ def scrape_qqq_holdings() -> pd.DataFrame:
     df = pd.DataFrame(rows).reindex(['Ticker', 'Company Name', 'Weight'], axis=1)
 
     df.to_sql('qqq_holdings_live', if_exists='replace', index=False, con='sqlite:///database.db')
-    df.to_csv('data/qqq_companies_live.csv', index=False)
     
     return df
     
