@@ -596,13 +596,13 @@ class TestFinancialDataHandling:
         assert result is False
     
     @patch('src.data.yf.Ticker')
-    def test_is_etf_or_index_with_category(self, mock_ticker_class):
-        """Test identifying ETF using category field."""
+    def test_is_etf_or_index_with_mutual_fund(self, mock_ticker_class):
+        """Test identifying mutual fund with category field."""
         from src.data import is_etf_or_index
         
         mock_ticker = MagicMock()
         mock_ticker.info = {
-            'quoteType': 'EQUITY',
+            'quoteType': 'MUTUALFUND',
             'symbol': 'GLD',
             'category': 'Commodities Precious Metals'
         }
@@ -610,6 +610,22 @@ class TestFinancialDataHandling:
         
         result = is_etf_or_index('GLD')
         assert result is True
+    
+    @patch('src.data.yf.Ticker')
+    def test_is_etf_or_index_stock_with_no_category(self, mock_ticker_class):
+        """Test that regular stocks without category are not identified as ETFs."""
+        from src.data import is_etf_or_index
+        
+        mock_ticker = MagicMock()
+        mock_ticker.info = {
+            'quoteType': 'EQUITY',
+            'symbol': 'AAPL',
+            'sector': 'Technology'  # Regular stocks might have sector but not category
+        }
+        mock_ticker_class.return_value = mock_ticker
+        
+        result = is_etf_or_index('AAPL')
+        assert result is False
     
     @patch('src.data.yf.Ticker')
     def test_is_etf_or_index_error_handling(self, mock_ticker_class):

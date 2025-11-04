@@ -135,8 +135,7 @@ def fetch_financial_data(
 
         # Convert to billions (except Basic EPS)
         # Apply conversion to all rows except Basic EPS
-        rows_to_convert = [col for col in expected_columns if col != 'Basic EPS']
-        df.loc[rows_to_convert] = df.loc[rows_to_convert] / 1e9
+        df.loc[df.index != 'Basic EPS'] = df.loc[df.index != 'Basic EPS'] / 1e9
         
         if df.empty:
             raise ValueError(f"No financial data found for ticker {ticker}")        
@@ -396,9 +395,11 @@ def is_etf_or_index(ticker: str) -> bool:
         if quote_type in ['ETF', 'INDEX']:
             return True
         
-        # Additional check: ETFs often have 'category' field
-        if 'category' in info and info['category']:
-            return True
+        # Additional check: Some ETFs are categorized as 'MUTUALFUND'
+        if quote_type == 'MUTUALFUND':
+            # Further verify by checking if it has a category (typical for funds)
+            if 'category' in info and info['category']:
+                return True
             
         return False
     except Exception:

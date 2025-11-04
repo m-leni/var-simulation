@@ -273,7 +273,11 @@ elif page == "Stock Analysis":
         
         # Check if ticker is an ETF or index
         if is_etf_or_index(ticker):
-            st.info(f"⚠️ {ticker} is an ETF or index fund. Financial statement analysis is not applicable for ETFs/indexes as they don't report earnings, expenses, or traditional financial statements.")
+            st.info(
+                f"⚠️ **{ticker} is an ETF or index fund.**\n\n"
+                f"Financial statement analysis is not applicable for ETFs/indexes "
+                f"as they don't report earnings, expenses, or traditional financial statements."
+            )
         else:
             try:
                 with st.spinner("Fetching financial data..."):
